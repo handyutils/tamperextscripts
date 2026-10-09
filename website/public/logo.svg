@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>tamperextscripts</title>
+  <!-- Rounded app tile -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="#0F766E"/>
+  <!-- Chat bubble with tail -->
+  <path d="M120 150 H392 A36 36 0 0 1 428 186 V318 A36 36 0 0 1 392 354 H214 L150 402 V354 H120 A36 36 0 0 1 84 318 V186 A36 36 0 0 1 120 150 Z" fill="#FFFFFF"/>
+  <!-- Export arrow: stem and head -->
+  <path d="M256 196 V292" stroke="#F59E0B" stroke-width="30" stroke-linecap="round" fill="none"/>
+  <path d="M212 262 L256 306 L300 262" stroke="#F59E0B" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
