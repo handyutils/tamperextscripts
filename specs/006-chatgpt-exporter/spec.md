@@ -1,7 +1,7 @@
 # Feature Specification: ChatGPT Exporter
 
 **Feature ID:** 006
-**Status:** proposed
+**Status:** in progress (Screenshot pending; see extension/README.md)
 **Target milestone:** M3
 
 ## Goal

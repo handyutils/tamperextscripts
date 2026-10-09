@@ -65,7 +65,7 @@ no unhandled stale-tab errors and do not block unrelated tabs.
 
 ### M3 — ChatGPT export workflow
 
-Status: planned
+Status: in progress (Screenshot pending)
 
 - Port the working custom script behavior behind a dedicated exporter module.
 - Support Markdown, JSON, HTML, plain text, screenshots, and bulk export.
