@@ -126,20 +126,24 @@ function el(tag, attrs = {}, text) {
   return node;
 }
 
+// Colors come from the tamperextscripts logo: teal #0F766E and amber #F59E0B.
 function styleElement() {
   const style = document.createElement("style");
   style.textContent = `
     .wrap { position: fixed; right: 16px; bottom: 16px; z-index: 2147483000; font: 13px system-ui, sans-serif; }
-    .toggle { padding: 6px 12px; border: 1px solid #888; border-radius: 6px; background: #fff; color: #111; cursor: pointer; }
-    .panel { position: absolute; right: 0; bottom: 36px; min-width: 220px; display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid #888; border-radius: 8px; background: #fff; color: #111; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+    .toggle { padding: 8px 14px; border: 0; border-radius: 8px; background: #0F766E; color: #fff; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(15,118,110,.35); }
+    .toggle:hover { background: #0b5c56; }
+    .panel { position: absolute; right: 0; bottom: 42px; min-width: 230px; display: flex; flex-direction: column; gap: 2px; padding: 8px; border: 1px solid #0F766E; border-radius: 10px; background: #fff; color: #13211f; box-shadow: 0 6px 20px rgba(15,118,110,.25); }
     .panel[hidden] { display: none; }
-    .panel button { text-align: left; padding: 6px 8px; border: 0; border-radius: 4px; background: transparent; color: inherit; cursor: pointer; }
-    .panel button:hover:not(:disabled) { background: rgba(127,127,127,.15); }
-    .panel button:disabled { opacity: .5; cursor: not-allowed; }
-    .status { min-height: 1.2em; padding: 4px 8px; color: #555; }
+    .panel button { text-align: left; padding: 7px 10px; border: 0; border-left: 3px solid transparent; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+    .panel button:hover:not(:disabled) { background: rgba(245,158,11,.18); border-left-color: #F59E0B; }
+    .panel button:disabled { color: #8a9a97; cursor: not-allowed; }
+    .panel button:focus-visible, .toggle:focus-visible { outline: 2px solid #F59E0B; outline-offset: 2px; }
+    .status { min-height: 1.2em; margin-top: 4px; padding: 6px 10px; border-top: 1px solid rgba(15,118,110,.25); color: #0F766E; font-weight: 600; }
     @media (prefers-color-scheme: dark) {
-      .toggle, .panel { background: #202123; color: #ececf1; border-color: #555; }
-      .status { color: #aaa; }
+      .panel { background: #13211f; color: #e6f4f1; }
+      .panel button:disabled { color: #6b7d7a; }
+      .status { color: #F59E0B; border-top-color: rgba(245,158,11,.3); }
     }
   `;
   return style;
