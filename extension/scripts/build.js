@@ -1,7 +1,7 @@
 // Builds a loadable unpacked extension into dist/. Content scripts cannot use
 // ES module imports in MV3, so src/content.js is bundled into one IIFE file.
 import { build } from "esbuild";
-import { copyFile, mkdir, rm } from "node:fs/promises";
+import { copyFile, cp, mkdir, rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -21,4 +21,5 @@ await build({
 });
 
 await copyFile(join(root, "manifest.json"), join(dist, "manifest.json"));
+await cp(join(root, "icons"), join(dist, "icons"), { recursive: true });
 console.log("Built extension in dist/");

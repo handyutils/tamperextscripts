@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/logo/tamperextscripts-512.png" width="128" alt="tamperextscripts logo"></p>
+
 # ChatGPT Exporter (tamperextscripts)
 
 A small, local-first Chromium (Manifest V3) extension that exports ChatGPT

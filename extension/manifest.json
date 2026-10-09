@@ -3,6 +3,12 @@
   "name": "ChatGPT Exporter (tamperextscripts)",
   "version": "0.1.0",
   "description": "Export ChatGPT conversations to Markdown, JSON, HTML, or plain text. Runs locally.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "license": "GPL-3.0-only",
   "permissions": [],
   "content_scripts": [
