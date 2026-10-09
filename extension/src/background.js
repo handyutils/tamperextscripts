@@ -16,11 +16,20 @@ const store = createScriptStore({
 // unregister and register calls.
 let syncChain = Promise.resolve();
 function syncRegistrations() {
-  syncChain = syncChain.then(doSync, doSync);
+  syncChain = syncChain.then(doSync, doSync).catch((error) => {
+    console.error("[tamperextscripts] Could not update user scripts:", error.message);
+  });
   return syncChain;
 }
 
 async function doSync() {
+  // chrome.userScripts is only present when the user turns on "Allow User Scripts"
+  // for this extension (Chrome 138+). Without it, nothing can be registered.
+  if (!chrome.userScripts) {
+    throw new Error(
+      'Turn on "Allow User Scripts" in this extension\'s details page (chrome://extensions) to run scripts.',
+    );
+  }
   await chrome.userScripts.configureWorld({ messaging: true });
   await chrome.userScripts.unregister();
 
