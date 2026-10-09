@@ -2,7 +2,7 @@
 // shadow root, so it does not depend on ChatGPT's DOM selectors or CSS, and it
 // lives on document.documentElement so it survives client-side navigation.
 
-import { getAccessToken, fetchConversation, listConversations } from "./api.js";
+import { getAuth, fetchConversation, listConversations } from "./api.js";
 import { normalizeConversation } from "./conversation.js";
 import {
   toMarkdown,
@@ -105,14 +105,14 @@ async function copyCurrent(status) {
 // independently: a missing or failing conversation is recorded in `failed`
 // and never aborts the rest of the run.
 async function exportAll(status) {
-  const token = await getAccessToken();
+  const auth = await getAuth();
   const exported = [];
   const failed = [];
   let offset = 0;
   let total = Infinity;
 
   while (offset < total) {
-    const page = await listConversations({ offset, limit: LIST_PAGE_SIZE }, token);
+    const page = await listConversations({ offset, limit: LIST_PAGE_SIZE }, auth);
     total = page.total ?? 0;
     const items = page.items ?? [];
     if (items.length === 0) break;
@@ -121,7 +121,7 @@ async function exportAll(status) {
       const done = exported.length + failed.length + 1;
       status.textContent = `Exporting ${done} of ${total}...`;
       try {
-        const raw = await fetchConversation(item.id, token);
+        const raw = await fetchConversation(item.id, auth);
         exported.push(normalizeConversation({ ...raw, conversation_id: item.id }));
       } catch (error) {
         failed.push({ id: item.id, title: item.title ?? null, error: error.message });
@@ -141,8 +141,8 @@ async function exportAll(status) {
 }
 
 async function loadConversation(id) {
-  const token = await getAccessToken();
-  const raw = await fetchConversation(id, token);
+  const auth = await getAuth();
+  const raw = await fetchConversation(id, auth);
   return normalizeConversation({ ...raw, conversation_id: id });
 }
 

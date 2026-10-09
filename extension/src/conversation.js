@@ -34,9 +34,16 @@ function activeBranch(mapping, currentNode) {
   return branch.reverse();
 }
 
+// Content types that are model internals rather than the visible conversation.
+const HIDDEN_CONTENT_TYPES = new Set(["thoughts", "reasoning_recap"]);
+
+// Mirrors what the ChatGPT web UI shows: only messages addressed to the user,
+// excluding hidden messages, tool output, and reasoning.
 function toMessage(message) {
   if (!message) return null;
   if (message.metadata?.is_visually_hidden_from_conversation) return null;
+  if (message.recipient && message.recipient !== "all") return null;
+  if (HIDDEN_CONTENT_TYPES.has(message.content?.content_type)) return null;
 
   const role = message.author?.role;
   if (!VISIBLE_ROLES.has(role)) return null;

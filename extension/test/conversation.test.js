@@ -91,3 +91,51 @@ test("returns no messages when current_node is missing from mapping", () => {
   const conv = normalizeConversation({ ...fixture, current_node: "missing" });
   assert.deepEqual(conv.messages, []);
 });
+
+// Builds a one-message branch so each filter rule can be checked in isolation.
+function singleMessage(message) {
+  return {
+    conversation_id: "c",
+    title: "t",
+    current_node: "n",
+    mapping: {
+      root: { id: "root", parent: null, children: ["n"], message: null },
+      n: { id: "n", parent: "root", children: [], message },
+    },
+  };
+}
+
+const base = {
+  id: "m",
+  author: { role: "assistant" },
+  create_time: 1,
+  content: { content_type: "text", parts: ["visible"] },
+  metadata: {},
+  recipient: "all",
+};
+
+test("skips messages addressed to a tool instead of the user", () => {
+  const conv = normalizeConversation(singleMessage({ ...base, recipient: "python" }));
+  assert.deepEqual(conv.messages, []);
+});
+
+test("skips thinking and reasoning-recap content", () => {
+  const thoughts = normalizeConversation(
+    singleMessage({ ...base, content: { content_type: "thoughts", parts: [] } }),
+  );
+  const recap = normalizeConversation(
+    singleMessage({ ...base, content: { content_type: "reasoning_recap", parts: ["x"] } }),
+  );
+  assert.deepEqual(thoughts.messages, []);
+  assert.deepEqual(recap.messages, []);
+});
+
+test("skips tool-role messages", () => {
+  const conv = normalizeConversation(singleMessage({ ...base, author: { role: "tool" } }));
+  assert.deepEqual(conv.messages, []);
+});
+
+test("keeps a visible assistant message addressed to the user", () => {
+  const conv = normalizeConversation(singleMessage(base));
+  assert.deepEqual(conv.messages.map((m) => m.text), ["visible"]);
+});
