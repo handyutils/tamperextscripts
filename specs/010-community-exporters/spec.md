@@ -27,9 +27,9 @@ exporter's behavior.
 | --- | --- | --- | --- | --- |
 | ChatGPT | `gptchatsexporter/` | Working (userscript 2.32.1); extension adapter verified on a stubbed page | `/backend-api/conversation/{id}`, `/backend-api/conversations`, `/api/auth/session` | Not verified with a logged-in account |
 | Claude | `claudechatsexporter/` | In progress | `/api/organizations/{org}/chat_conversations/{id}?tree=true&rendering_mode=messages&render_all_tools=true` (org from `lastActiveOrg` cookie) | Needs logged-in check |
-| Grok | `grokchatsexporter/` | Not started | Unknown (`rest/app-chat/conversations` is unconfirmed) | Endpoints not published |
+| Grok | `grokchatsexporter/` | Built (0.1.1); endpoints read from a logged-in page; not yet run end-to-end | `/rest/app-chat/conversations_v2/{id}`, `/rest/app-chat/conversations/{id}/response-node`, POST `/rest/app-chat/conversations/{id}/load-responses`, `/rest/app-chat/conversations` (pageToken) | Needs logged-in export test |
 | Mistral (Le Chat) | `mistralchatsexporter/` | Not started | Unknown | No public API found |
-| DeepSeek | `deepseekchatsexporter/` | Not started | Unknown | No public API found |
+| DeepSeek | `deepseekchatsexporter/` | Blocked on auth design | `/api/v0/chat/history_messages?chat_session_id=`, `/api/v0/chat_session/fetch_page` | Both need the page's bearer token (INVALID_TOKEN / Missing Token). Decide how the userscript obtains it |
 | Gemini | `geminichatsexporter/` | Not started | Unknown (uses batch RPC) | Endpoints not published |
 
 Sources reviewed: claude-chat-exporter README (Claude endpoints);
@@ -45,9 +45,9 @@ extensions, not confirmed endpoints.
 - [ ] Verify on a logged-in claude.ai conversation (user)
 
 ### Grok
-- [ ] Capture conversation and list requests in a logged-in grok.com tab (user, see capture steps below)
-- [ ] Confirm response shape and auth headers
-- [ ] Normalizer test, adapter, generated userscript
+- [x] Endpoints and message shape read from a logged-in grok.com tab
+- [x] Normalizer test, adapter, generated userscript (0.1.1)
+- [ ] Verify export on a logged-in conversation (user)
 
 ### Mistral (Le Chat)
 - [ ] Capture requests on chat.mistral.ai (user)

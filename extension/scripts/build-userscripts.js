@@ -23,6 +23,16 @@ const targets = [
       description: "Export claude.ai conversations to Markdown, JSON, HTML, or plain text.",
     },
   },
+  {
+    entry: "src/grok-entry.js",
+    folder: "grokchatsexporter",
+    file: `Grok Exporter-${VERSION}.user.js`,
+    header: {
+      name: "Grok Chat Exporter",
+      match: "https://grok.com/*",
+      description: "Export grok.com conversations to Markdown, JSON, HTML, or plain text.",
+    },
+  },
 ];
 
 for (const target of targets) {
