@@ -36,3 +36,34 @@ service-worker lifecycle events.
 - A worker restart does not create duplicate registrations.
 - An unrelated page receives no userscript injection.
 
+
+## Implementation notes (tamperextscripts manager)
+
+Status update: implemented as a rewrite (not a port of the Manifest V2 2.9
+source) in `extension/src/userscript/`, with a service worker
+(`background.js`) and dashboard (`options.html`). Unit tests cover parsing,
+matching, storage, registration mapping, GM bridge checks, and registry
+verification (`npm test` in `extension/`).
+
+### Permission rationale (required by the constitution)
+
+- `userScripts`: needed to register scripts into the USER_SCRIPT world.
+  Chrome requires the user to enable "Allow User Scripts" for the extension.
+- `storage`: saves installed scripts and their GM values locally.
+- `host_permissions: <all_urls>`: user scripts declare their own pages, and
+  `GM_xmlhttpRequest` must reach hosts a script names. Narrowing this would
+  break the core behavior, so the dashboard warns that scripts can read and
+  change any page they match.
+
+### Behavior and limits
+
+- `@match` and `@include` together run on the union of pages. Glob `@include`
+  is supported; regex `@include` is reported as a warning and not applied.
+- `@exclude` is a glob list.
+- GM API: `GM_getValue`, `GM_setValue`, `GM_xmlhttpRequest`, and `GM_info`.
+  Only functions named in `@grant` are exposed. Other GM functions are not
+  implemented yet.
+- `@require` and `@resource` are not supported yet.
+- Community scripts come from `registry/index.json`. Each entry pins its
+  source by SHA-256; a mismatch is refused. The user still reviews and presses
+  Install.

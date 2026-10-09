@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tamperextscripts - Scripts</title>
+  <link rel="icon" href="icons/icon-32.png">
+  <style>
+    :root { color-scheme: light dark; font: 14px/1.45 system-ui, sans-serif; }
+    body { max-width: 860px; margin: 24px auto; padding: 0 16px; }
+    header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    header img { width: 40px; height: 40px; }
+    h1 { font-size: 20px; margin: 0; }
+    h2 { font-size: 16px; margin: 28px 0 8px; }
+    .notice { padding: 10px 12px; border-radius: 6px; background: rgba(245,158,11,.15); border: 1px solid #f59e0b; margin: 12px 0; }
+    .error { padding: 10px 12px; border-radius: 6px; background: rgba(220,38,38,.12); border: 1px solid #dc2626; margin: 12px 0; }
+    textarea { width: 100%; min-height: 140px; font: 12px ui-monospace, monospace; box-sizing: border-box; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid rgba(127,127,127,.3); vertical-align: top; }
+    .muted { color: rgba(127,127,127,1); font-size: 12px; }
+    .warn { color: #b45309; font-size: 12px; }
+    button { padding: 6px 12px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="icons/icon-128.png" alt="">
+    <h1>tamperextscripts - Scripts</h1>
+  </header>
+
+  <div id="setup" class="notice" hidden>
+    User scripts are off. Open this extension's details page in
+    <code>chrome://extensions</code> and turn on <strong>Allow User Scripts</strong>, then reload this page.
+  </div>
+
+  <div class="notice">
+    Scripts run with access to the pages they match. Install only scripts you have read or trust.
+  </div>
+
+  <h2>Install a script</h2>
+  <p>
+    <input type="file" id="file" accept=".js,.user.js,text/javascript">
+    or paste source below.
+  </p>
+  <textarea id="source" spellcheck="false" placeholder="// ==UserScript== ..."></textarea>
+  <p><button id="install" type="button">Install</button></p>
+  <div id="install-error" class="error" hidden></div>
+
+  <h2>Community scripts</h2>
+  <p class="muted">Each script is checked against its published SHA-256 before it loads into the install box. Review it, then press Install.</p>
+  <div id="registry-error" class="error" hidden></div>
+  <div id="registry-empty" class="muted" hidden>The registry has no scripts yet.</div>
+  <table id="registry" hidden>
+    <thead>
+      <tr><th>Script</th><th>Description</th><th></th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Installed scripts</h2>
+  <div id="empty" class="muted" hidden>No scripts installed yet.</div>
+  <table id="list" hidden>
+    <thead>
+      <tr><th>Enabled</th><th>Script</th><th>Matches</th><th></th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="options.js"></script>
+</body>
+</html>
