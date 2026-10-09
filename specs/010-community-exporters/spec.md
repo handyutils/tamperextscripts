@@ -64,6 +64,13 @@ extensions, not confirmed endpoints.
 - [ ] Decide whether a DOM fallback is acceptable for Gemini
 - [ ] Normalizer test, adapter, generated userscript
 
+## Capture tool
+
+`tools/endpoint-capture.user.js` runs on the four remaining sites. It records
+paths, parameter names, status codes, and response key names (never message
+text), and adds a button that copies the summary. Use it to write each adapter
+from real traffic.
+
 ## Capture steps (user, per site)
 
 1. Open the site logged in and load one conversation.
