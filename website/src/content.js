@@ -44,6 +44,7 @@ export const sections = [
       "On a ChatGPT or Claude conversation page, an Export button appears in the bottom-right corner. Open it to choose a format.",
       "Formats: Markdown, JSON, HTML, plain text, and copy to clipboard. Export all saves every conversation in one JSON file, with a list of any that failed.",
       "Only the active branch is exported, and only text you can see. Thinking, tool calls, and hidden messages are left out.",
+      "The ChatGPT exporter is built into the extension. The Claude exporter is a separate userscript: install the file from the repository folder community-scripts-registry/claudechatsexporter with the options page, or with Tampermonkey.",
     ],
     note: "Status: the ChatGPT and Claude exporters are in beta. They use each site's own web API, which is undocumented and can change. Report problems on GitHub.",
   },
