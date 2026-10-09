@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Claude Chat Exporter
-// @namespace    https://github.com/inboxxobni/tamperextscripts
+// @namespace    https://github.com/handyutils/tamperextscripts
 // @version      0.1.1
 // @description  Export claude.ai conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only

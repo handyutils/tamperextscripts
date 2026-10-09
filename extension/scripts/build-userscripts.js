@@ -39,7 +39,7 @@ for (const target of targets) {
   const header = [
     "// ==UserScript==",
     `// @name         ${target.header.name}`,
-    "// @namespace    https://github.com/inboxxobni/tamperextscripts",
+    "// @namespace    https://github.com/handyutils/tamperextscripts",
     `// @version      ${VERSION}`,
     `// @description  ${target.header.description}`,
     "// @license      GPL-3.0-only",

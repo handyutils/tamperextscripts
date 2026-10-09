@@ -7,7 +7,7 @@ const validEntry = {
   name: "Hello World",
   version: "1.0.0",
   description: "Says hello",
-  url: "https://raw.githubusercontent.com/inboxxobni/tamperextscripts/master/registry/scripts/hello.user.js",
+  url: "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/registry/scripts/hello.user.js",
   sha256: "a".repeat(64),
   license: "GPL-3.0-only",
 };

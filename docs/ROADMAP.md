@@ -13,7 +13,7 @@ version 2.9. It is not a port of proprietary Tampermonkey 5.x code.
 
 ## Current state
 
-- Repository: `inboxxobni/tamperextscripts`
+- Repository: `handyutils/tamperextscripts`
 - Baseline: legacy Tampermonkey 2.9-era source
 - Build model: shell-based legacy extension packaging
 - Browser target: modern Chromium, including Chrome 153

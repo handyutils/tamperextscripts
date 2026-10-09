@@ -7,7 +7,7 @@ import { toRegistrations } from "./userscript/registration.js";
 import { parseRegistryIndex, verifySource } from "./userscript/registry.js";
 
 // Community index. Published from the registry/ folder of this repository.
-const REGISTRY_URL = "https://raw.githubusercontent.com/inboxxobni/tamperextscripts/master/registry/index.json";
+const REGISTRY_URL = "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/registry/index.json";
 
 const store = createScriptStore({
   get: (key) => chrome.storage.local.get(key),
