@@ -36,6 +36,11 @@ function organizationId() {
 async function getJson(url) {
   const response = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
   if (response.status === 429) throw new Error("Claude is rate limiting requests; try again later.");
-  if (!response.ok) throw new Error(`Claude request failed: ${response.status} ${url}`);
+  if (response.status === 404) {
+    throw new Error(
+      "Claude did not return this conversation for the active organization. It may belong to another account or workspace.",
+    );
+  }
+  if (!response.ok) throw new Error(`Claude request failed: ${response.status} ${url.split("?")[0]}`);
   return response.json();
 }

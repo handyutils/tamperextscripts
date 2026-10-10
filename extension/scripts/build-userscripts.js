@@ -53,6 +53,16 @@ const targets = [
       description: "Export DeepSeek conversations to Markdown, JSON, HTML, or plain text.",
     },
   },
+  {
+    entry: "src/chatgpt-entry.js",
+    folder: "gptchatsexporter",
+    file: `ChatGPT Exporter (tamperextscripts)-${VERSION}.user.js`,
+    header: {
+      name: "ChatGPT Chat Exporter (tamperextscripts)",
+      match: ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      description: "Export ChatGPT conversations to Markdown, JSON, HTML, or plain text.",
+    },
+  },
 ];
 
 for (const target of targets) {
@@ -73,7 +83,7 @@ for (const target of targets) {
     `// @version      ${VERSION}`,
     `// @description  ${target.header.description}`,
     "// @license      GPL-3.0-only",
-    `// @match        ${target.header.match}`,
+    ...[target.header.match].flat().map((m) => `// @match        ${m}`),
     "// @grant        none",
     "// @run-at       document-idle",
     "// ==/UserScript==",
