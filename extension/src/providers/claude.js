@@ -28,7 +28,7 @@ export const claudeAdapter = {
       return normalizeClaudeConversation(await parse(response, url));
     }
     if (notFound) {
-      throw new Error("This conversation was not found in the signed-in Claude account. Check which account you are signed in to.");
+      throw new Error(`This conversation was not found in the signed-in Claude account (${await signedInEmail()}). Sign in to the account that owns it.`);
     }
     throw new Error("Not signed in to Claude (no organizations found).");
   },
@@ -42,6 +42,15 @@ export const claudeAdapter = {
     return items;
   },
 };
+
+// Shown in the not-found error so the user can see which account is active.
+async function signedInEmail() {
+  try {
+    return (await getJson("/api/account")).email_address ?? "unknown account";
+  } catch {
+    return "unknown account";
+  }
+}
 
 async function organizationIds() {
   const organizations = await getJson("/api/organizations");

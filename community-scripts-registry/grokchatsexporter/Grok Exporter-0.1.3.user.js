@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Grok Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.2
+// @version      0.1.3
 // @description  Export grok.com conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
 // @match        https://grok.com/*

@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Claude Chat Exporter
+// @name         DeepSeek Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.2
-// @description  Export claude.ai conversations to Markdown, JSON, HTML, or plain text.
+// @version      0.1.3
+// @description  Export DeepSeek conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
-// @match        https://claude.ai/*
+// @match        https://chat.deepseek.com/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -190,88 +190,73 @@ ${m.text}`
     return style;
   }
 
-  // src/providers/claude-normalize.js
-  var ROLE_BY_SENDER = { human: "user", assistant: "assistant" };
-  function normalizeClaudeConversation(raw) {
-    const byUuid = new Map((raw.chat_messages ?? []).map((m) => [m.uuid, m]));
+  // src/providers/deepseek-normalize.js
+  var ROLE = { USER: "user", ASSISTANT: "assistant" };
+  var TEXT_FRAGMENT = { USER: "REQUEST", ASSISTANT: "RESPONSE" };
+  function normalizeDeepSeekConversation(session, messages) {
+    const byId = new Map(messages.map((m) => [m.message_id, m]));
     const branch = [];
     const seen = /* @__PURE__ */ new Set();
-    let cur = byUuid.get(raw.current_leaf_message_uuid);
-    while (cur && !seen.has(cur.uuid)) {
-      seen.add(cur.uuid);
+    let cur = byId.get(session.current_message_id);
+    while (cur && !seen.has(cur.message_id)) {
+      seen.add(cur.message_id);
       branch.push(cur);
-      cur = byUuid.get(cur.parent_message_uuid);
+      cur = byId.get(cur.parent_id);
     }
     branch.reverse();
-    const messages = branch.map((m) => ({
-      role: ROLE_BY_SENDER[m.sender],
-      text: textOf(m.content),
-      createTime: m.created_at ? Math.floor(Date.parse(m.created_at) / 1e3) : null
-    })).filter((m) => m.role && m.text);
+    const out = branch.filter((m) => ROLE[m.role]).map((m) => ({
+      role: ROLE[m.role],
+      text: (m.fragments ?? []).filter((f) => f.type === TEXT_FRAGMENT[m.role] && typeof f.content === "string").map((f) => f.content.trim()).filter(Boolean).join("\n\n"),
+      createTime: m.inserted_at ? m.inserted_at : null
+    })).filter((m) => m.text);
     return {
-      id: raw.uuid ?? "",
-      title: raw.name || "Untitled conversation",
-      createTime: raw.created_at ? Math.floor(Date.parse(raw.created_at) / 1e3) : null,
-      messages
+      id: session.id ?? "",
+      title: session.title || "Untitled conversation",
+      createTime: session.updated_at ?? null,
+      messages: out
     };
   }
-  function textOf(blocks) {
-    return (blocks ?? []).filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text.trim()).filter(Boolean).join("\n\n");
-  }
 
-  // src/providers/claude-orgs.js
-  function orderOrganizations(organizations, cookieOrg) {
-    const ids = organizations.map((o) => o.uuid);
-    return ids.includes(cookieOrg) ? [cookieOrg, ...ids.filter((id) => id !== cookieOrg)] : ids;
-  }
-
-  // src/providers/claude.js
-  var CONVERSATION_PATH = /^\/chat\/([0-9a-f-]+)/i;
-  var claudeAdapter = {
-    name: "Claude",
+  // src/providers/deepseek.js
+  var SESSION_PATH = /^\/a\/chat\/s\/([0-9a-f-]+)/i;
+  var deepseekAdapter = {
+    name: "DeepSeek",
     currentConversationId() {
-      return CONVERSATION_PATH.exec(location.pathname)?.[1] ?? null;
+      return SESSION_PATH.exec(location.pathname)?.[1] ?? null;
     },
     async loadConversation(id) {
-      let notFound = false;
-      for (const org of await organizationIds()) {
-        const url = `/api/organizations/${org}/chat_conversations/${id}?tree=true&rendering_mode=messages&render_all_tools=true`;
-        const response = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
-        if (response.status === 404) {
-          notFound = true;
-          continue;
-        }
-        return normalizeClaudeConversation(await parse(response, url));
-      }
-      if (notFound) {
-        throw new Error("This conversation was not found in the signed-in Claude account. Check which account you are signed in to.");
-      }
-      throw new Error("Not signed in to Claude (no organizations found).");
+      const data = await api(`/api/v0/chat/history_messages?chat_session_id=${encodeURIComponent(id)}`);
+      return normalizeDeepSeekConversation(data.chat_session, data.chat_messages);
     },
     async listConversations() {
-      const items = [];
-      for (const org of await organizationIds()) {
-        const list = await getJson(`/api/organizations/${org}/chat_conversations`);
-        items.push(...list.map((c) => ({ id: c.uuid, title: c.name, org })));
+      const page = await api("/api/v0/chat_session/fetch_page?lte_cursor.pinned=false");
+      if (page.has_more) {
+        throw new Error("This account has more chats than the DeepSeek exporter can list yet.");
       }
-      return items;
+      return page.chat_sessions.map((s) => ({ id: s.id, title: s.title }));
     }
   };
-  async function organizationIds() {
-    const organizations = await getJson("/api/organizations");
-    const cookie = /(?:^|;\s*)lastActiveOrg=([^;]+)/.exec(document.cookie);
-    return orderOrganizations(organizations, cookie ? decodeURIComponent(cookie[1]) : null);
+  function userToken() {
+    const raw = localStorage.getItem("userToken");
+    if (!raw) throw new Error("Not signed in to DeepSeek (no session token on this page).");
+    try {
+      return JSON.parse(raw).value;
+    } catch {
+      return raw;
+    }
   }
-  async function getJson(url) {
-    const response = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
-    return parse(response, url);
-  }
-  async function parse(response, url) {
-    if (response.status === 429) throw new Error("Claude is rate limiting requests; try again later.");
-    if (!response.ok) throw new Error(`Claude request failed: ${response.status} ${url.split("?")[0]}`);
-    return response.json();
+  async function api(path) {
+    const response = await fetch(path, {
+      credentials: "include",
+      headers: { Accept: "application/json", Authorization: `Bearer ${userToken()}` }
+    });
+    if (response.status === 429) throw new Error("DeepSeek is rate limiting requests; try again later.");
+    if (!response.ok) throw new Error(`DeepSeek request failed: ${response.status} ${path.split("?")[0]}`);
+    const body = await response.json();
+    if (body.code !== 0) throw new Error(`DeepSeek error ${body.code}: ${body.msg}`);
+    return body.data.biz_data;
   }
 
-  // src/claude-entry.js
-  mountWidget(claudeAdapter);
+  // src/deepseek-entry.js
+  mountWidget(deepseekAdapter);
 })();
