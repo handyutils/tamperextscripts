@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Mistral Chat Exporter
+// @name         DeepSeek Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.1
-// @description  Export Mistral Le Chat conversations to Markdown, JSON, HTML, or plain text.
+// @version      0.1.2
+// @description  Export DeepSeek conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
-// @match        https://chat.mistral.ai/*
+// @match        https://chat.deepseek.com/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -190,63 +190,73 @@ ${m.text}`
     return style;
   }
 
-  // src/providers/mistral-normalize.js
-  var ROLE = { user: "user", assistant: "assistant" };
-  function normalizeMistralConversation(chat, items) {
-    const messages = [...items].sort((a, b) => (a.turn ?? 0) - (b.turn ?? 0) || Date.parse(a.createdAt) - Date.parse(b.createdAt)).map((m) => ({
+  // src/providers/deepseek-normalize.js
+  var ROLE = { USER: "user", ASSISTANT: "assistant" };
+  var TEXT_FRAGMENT = { USER: "REQUEST", ASSISTANT: "RESPONSE" };
+  function normalizeDeepSeekConversation(session, messages) {
+    const byId = new Map(messages.map((m) => [m.message_id, m]));
+    const branch = [];
+    const seen = /* @__PURE__ */ new Set();
+    let cur = byId.get(session.current_message_id);
+    while (cur && !seen.has(cur.message_id)) {
+      seen.add(cur.message_id);
+      branch.push(cur);
+      cur = byId.get(cur.parent_id);
+    }
+    branch.reverse();
+    const out = branch.filter((m) => ROLE[m.role]).map((m) => ({
       role: ROLE[m.role],
-      text: typeof m.content === "string" ? m.content.trim() : "",
-      createTime: m.createdAt ? Math.floor(Date.parse(m.createdAt) / 1e3) : null
-    })).filter((m) => m.role && m.text);
+      text: (m.fragments ?? []).filter((f) => f.type === TEXT_FRAGMENT[m.role] && typeof f.content === "string").map((f) => f.content.trim()).filter(Boolean).join("\n\n"),
+      createTime: m.inserted_at ? m.inserted_at : null
+    })).filter((m) => m.text);
     return {
-      id: chat.id ?? "",
-      title: chat.title || "Untitled conversation",
-      createTime: chat.updatedAt ? Math.floor(Date.parse(chat.updatedAt) / 1e3) : null,
-      messages
+      id: session.id ?? "",
+      title: session.title || "Untitled conversation",
+      createTime: session.updated_at ?? null,
+      messages: out
     };
   }
 
-  // src/providers/mistral.js
-  var CHAT_PATH = /^\/work\/([0-9a-f-]+)/i;
-  var mistralAdapter = {
-    name: "Mistral",
+  // src/providers/deepseek.js
+  var SESSION_PATH = /^\/a\/chat\/s\/([0-9a-f-]+)/i;
+  var deepseekAdapter = {
+    name: "DeepSeek",
     currentConversationId() {
-      return CHAT_PATH.exec(location.pathname)?.[1] ?? null;
+      return SESSION_PATH.exec(location.pathname)?.[1] ?? null;
     },
     async loadConversation(id) {
-      const chat = await trpc("chat.byId", { json: { id } });
-      const messages = await trpc("message.all", { json: { chatId: id } });
-      return normalizeMistralConversation(
-        { id, title: chat.userTitle || chat.generatedTitle || chat.title, updatedAt: chat.updatedAt },
-        messages.items ?? []
-      );
+      const data = await api(`/api/v0/chat/history_messages?chat_session_id=${encodeURIComponent(id)}`);
+      return normalizeDeepSeekConversation(data.chat_session, data.chat_messages);
     },
     async listConversations() {
-      const items = [];
-      let cursor = null;
-      do {
-        const input = { json: { limit: 50, ...cursor ? { cursor } : {} } };
-        if (cursor) input.meta = { values: { cursor: ["Date"] } };
-        const page = await trpc("chat.last", input);
-        for (const c of page.items ?? []) {
-          items.push({ id: c.id, title: c.userTitle || c.generatedTitle || c.title || "" });
-        }
-        cursor = page.nextCursor || null;
-      } while (cursor);
-      return items;
+      const page = await api("/api/v0/chat_session/fetch_page?lte_cursor.pinned=false");
+      if (page.has_more) {
+        throw new Error("This account has more chats than the DeepSeek exporter can list yet.");
+      }
+      return page.chat_sessions.map((s) => ({ id: s.id, title: s.title }));
     }
   };
-  async function trpc(procedure, input) {
-    const response = await fetch(`/api/trpc/${procedure}?input=${encodeURIComponent(JSON.stringify(input))}`, {
+  function userToken() {
+    const raw = localStorage.getItem("userToken");
+    if (!raw) throw new Error("Not signed in to DeepSeek (no session token on this page).");
+    try {
+      return JSON.parse(raw).value;
+    } catch {
+      return raw;
+    }
+  }
+  async function api(path) {
+    const response = await fetch(path, {
       credentials: "include",
-      headers: { Accept: "application/json" }
+      headers: { Accept: "application/json", Authorization: `Bearer ${userToken()}` }
     });
-    if (response.status === 429) throw new Error("Mistral is rate limiting requests; try again later.");
-    if (!response.ok) throw new Error(`Mistral request failed: ${response.status} ${procedure}`);
+    if (response.status === 429) throw new Error("DeepSeek is rate limiting requests; try again later.");
+    if (!response.ok) throw new Error(`DeepSeek request failed: ${response.status} ${path.split("?")[0]}`);
     const body = await response.json();
-    return body.result.data.json;
+    if (body.code !== 0) throw new Error(`DeepSeek error ${body.code}: ${body.msg}`);
+    return body.data.biz_data;
   }
 
-  // src/mistral-entry.js
-  mountWidget(mistralAdapter);
+  // src/deepseek-entry.js
+  mountWidget(deepseekAdapter);
 })();

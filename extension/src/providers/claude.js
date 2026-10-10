@@ -3,6 +3,7 @@
 // are undocumented and may change.
 
 import { normalizeClaudeConversation } from "./claude-normalize.js";
+import { orderOrganizations } from "./claude-orgs.js";
 
 const CONVERSATION_PATH = /^\/chat\/([0-9a-f-]+)/i;
 
@@ -14,33 +15,47 @@ export const claudeAdapter = {
   },
 
   async loadConversation(id) {
-    const org = organizationId();
-    const url = `/api/organizations/${org}/chat_conversations/${id}?tree=true&rendering_mode=messages&render_all_tools=true`;
-    return normalizeClaudeConversation(await getJson(url));
+    // Ask Claude which organizations the current account has, on every call, so a
+    // switched account never reuses an old organization.
+    let notFound = false;
+    for (const org of await organizationIds()) {
+      const url = `/api/organizations/${org}/chat_conversations/${id}?tree=true&rendering_mode=messages&render_all_tools=true`;
+      const response = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
+      if (response.status === 404) {
+        notFound = true;
+        continue;
+      }
+      return normalizeClaudeConversation(await parse(response, url));
+    }
+    if (notFound) {
+      throw new Error("This conversation was not found in the signed-in Claude account. Check which account you are signed in to.");
+    }
+    throw new Error("Not signed in to Claude (no organizations found).");
   },
 
   async listConversations() {
-    const org = organizationId();
-    const list = await getJson(`/api/organizations/${org}/chat_conversations`);
-    return list.map((c) => ({ id: c.uuid, title: c.name }));
+    const items = [];
+    for (const org of await organizationIds()) {
+      const list = await getJson(`/api/organizations/${org}/chat_conversations`);
+      items.push(...list.map((c) => ({ id: c.uuid, title: c.name, org })));
+    }
+    return items;
   },
 };
 
-// The active organization is stored in the lastActiveOrg cookie.
-function organizationId() {
-  const match = /(?:^|;\s*)lastActiveOrg=([^;]+)/.exec(document.cookie);
-  if (!match) throw new Error("Not signed in to Claude (no active organization).");
-  return decodeURIComponent(match[1]);
+async function organizationIds() {
+  const organizations = await getJson("/api/organizations");
+  const cookie = /(?:^|;\s*)lastActiveOrg=([^;]+)/.exec(document.cookie);
+  return orderOrganizations(organizations, cookie ? decodeURIComponent(cookie[1]) : null);
 }
 
 async function getJson(url) {
   const response = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
+  return parse(response, url);
+}
+
+async function parse(response, url) {
   if (response.status === 429) throw new Error("Claude is rate limiting requests; try again later.");
-  if (response.status === 404) {
-    throw new Error(
-      "Claude did not return this conversation for the active organization. It may belong to another account or workspace.",
-    );
-  }
   if (!response.ok) throw new Error(`Claude request failed: ${response.status} ${url.split("?")[0]}`);
   return response.json();
 }

@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Claude Chat Exporter
+// @name         Mistral Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.1
-// @description  Export claude.ai conversations to Markdown, JSON, HTML, or plain text.
+// @version      0.1.2
+// @description  Export Mistral Le Chat conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
-// @match        https://claude.ai/*
+// @match        https://chat.mistral.ai/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -190,65 +190,63 @@ ${m.text}`
     return style;
   }
 
-  // src/providers/claude-normalize.js
-  var ROLE_BY_SENDER = { human: "user", assistant: "assistant" };
-  function normalizeClaudeConversation(raw) {
-    const byUuid = new Map((raw.chat_messages ?? []).map((m) => [m.uuid, m]));
-    const branch = [];
-    const seen = /* @__PURE__ */ new Set();
-    let cur = byUuid.get(raw.current_leaf_message_uuid);
-    while (cur && !seen.has(cur.uuid)) {
-      seen.add(cur.uuid);
-      branch.push(cur);
-      cur = byUuid.get(cur.parent_message_uuid);
-    }
-    branch.reverse();
-    const messages = branch.map((m) => ({
-      role: ROLE_BY_SENDER[m.sender],
-      text: textOf(m.content),
-      createTime: m.created_at ? Math.floor(Date.parse(m.created_at) / 1e3) : null
+  // src/providers/mistral-normalize.js
+  var ROLE = { user: "user", assistant: "assistant" };
+  function normalizeMistralConversation(chat, items) {
+    const messages = [...items].sort((a, b) => (a.turn ?? 0) - (b.turn ?? 0) || Date.parse(a.createdAt) - Date.parse(b.createdAt)).map((m) => ({
+      role: ROLE[m.role],
+      text: typeof m.content === "string" ? m.content.trim() : "",
+      createTime: m.createdAt ? Math.floor(Date.parse(m.createdAt) / 1e3) : null
     })).filter((m) => m.role && m.text);
     return {
-      id: raw.uuid ?? "",
-      title: raw.name || "Untitled conversation",
-      createTime: raw.created_at ? Math.floor(Date.parse(raw.created_at) / 1e3) : null,
+      id: chat.id ?? "",
+      title: chat.title || "Untitled conversation",
+      createTime: chat.updatedAt ? Math.floor(Date.parse(chat.updatedAt) / 1e3) : null,
       messages
     };
   }
-  function textOf(blocks) {
-    return (blocks ?? []).filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text.trim()).filter(Boolean).join("\n\n");
-  }
 
-  // src/providers/claude.js
-  var CONVERSATION_PATH = /^\/chat\/([0-9a-f-]+)/i;
-  var claudeAdapter = {
-    name: "Claude",
+  // src/providers/mistral.js
+  var CHAT_PATH = /^\/work\/([0-9a-f-]+)/i;
+  var mistralAdapter = {
+    name: "Mistral",
     currentConversationId() {
-      return CONVERSATION_PATH.exec(location.pathname)?.[1] ?? null;
+      return CHAT_PATH.exec(location.pathname)?.[1] ?? null;
     },
     async loadConversation(id) {
-      const org = organizationId();
-      const url = `/api/organizations/${org}/chat_conversations/${id}?tree=true&rendering_mode=messages&render_all_tools=true`;
-      return normalizeClaudeConversation(await getJson(url));
+      const chat = await trpc("chat.byId", { json: { id } });
+      const messages = await trpc("message.all", { json: { chatId: id } });
+      return normalizeMistralConversation(
+        { id, title: chat.userTitle || chat.generatedTitle || chat.title, updatedAt: chat.updatedAt },
+        messages.items ?? []
+      );
     },
     async listConversations() {
-      const org = organizationId();
-      const list = await getJson(`/api/organizations/${org}/chat_conversations`);
-      return list.map((c) => ({ id: c.uuid, title: c.name }));
+      const items = [];
+      let cursor = null;
+      do {
+        const input = { json: { limit: 50, ...cursor ? { cursor } : {} } };
+        if (cursor) input.meta = { values: { cursor: ["Date"] } };
+        const page = await trpc("chat.last", input);
+        for (const c of page.items ?? []) {
+          items.push({ id: c.id, title: c.userTitle || c.generatedTitle || c.title || "" });
+        }
+        cursor = page.nextCursor || null;
+      } while (cursor);
+      return items;
     }
   };
-  function organizationId() {
-    const match = /(?:^|;\s*)lastActiveOrg=([^;]+)/.exec(document.cookie);
-    if (!match) throw new Error("Not signed in to Claude (no active organization).");
-    return decodeURIComponent(match[1]);
-  }
-  async function getJson(url) {
-    const response = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
-    if (response.status === 429) throw new Error("Claude is rate limiting requests; try again later.");
-    if (!response.ok) throw new Error(`Claude request failed: ${response.status} ${url}`);
-    return response.json();
+  async function trpc(procedure, input) {
+    const response = await fetch(`/api/trpc/${procedure}?input=${encodeURIComponent(JSON.stringify(input))}`, {
+      credentials: "include",
+      headers: { Accept: "application/json" }
+    });
+    if (response.status === 429) throw new Error("Mistral is rate limiting requests; try again later.");
+    if (!response.ok) throw new Error(`Mistral request failed: ${response.status} ${procedure}`);
+    const body = await response.json();
+    return body.result.data.json;
   }
 
-  // src/claude-entry.js
-  mountWidget(claudeAdapter);
+  // src/mistral-entry.js
+  mountWidget(mistralAdapter);
 })();
