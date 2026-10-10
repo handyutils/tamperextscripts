@@ -43,6 +43,16 @@ const targets = [
       description: "Export Mistral Le Chat conversations to Markdown, JSON, HTML, or plain text.",
     },
   },
+  {
+    entry: "src/deepseek-entry.js",
+    folder: "deepseekchatsexporter",
+    file: `DeepSeek Exporter-${VERSION}.user.js`,
+    header: {
+      name: "DeepSeek Chat Exporter",
+      match: "https://chat.deepseek.com/*",
+      description: "Export DeepSeek conversations to Markdown, JSON, HTML, or plain text.",
+    },
+  },
 ];
 
 for (const target of targets) {

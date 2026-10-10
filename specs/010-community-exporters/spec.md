@@ -29,8 +29,8 @@ exporter's behavior.
 | Claude | `claudechatsexporter/` | In progress | `/api/organizations/{org}/chat_conversations/{id}?tree=true&rendering_mode=messages&render_all_tools=true` (org from `lastActiveOrg` cookie) | Needs logged-in check |
 | Grok | `grokchatsexporter/` | Built (0.1.1); endpoints read from a logged-in page; not yet run end-to-end | `/rest/app-chat/conversations_v2/{id}`, `/rest/app-chat/conversations/{id}/response-node`, POST `/rest/app-chat/conversations/{id}/load-responses`, `/rest/app-chat/conversations` (pageToken) | Needs logged-in export test |
 | Mistral (Le Chat) | `mistralchatsexporter/` | Built (0.1.1); endpoints read from a logged-in page; not yet run end-to-end | tRPC GET `chat.byId` (`{json:{id}}`), `message.all` (`{json:{chatId}}`), `chat.last` (paging via date cursor with superjson `meta`) | Needs logged-in export test |
-| DeepSeek | `deepseekchatsexporter/` | Blocked on auth design | `/api/v0/chat/history_messages?chat_session_id=`, `/api/v0/chat_session/fetch_page` | Both need the page's bearer token (INVALID_TOKEN / Missing Token). Decide how the userscript obtains it |
-| Gemini | `geminichatsexporter/` | Blocked on auth design | `gemini.google.com/_/BardChatUi/data/batchexecute` (rpcids obfuscated) | Calls need the page's anti-CSRF token. Decide how the userscript obtains it; RPC names need mapping |
+| DeepSeek | `deepseekchatsexporter/` | Built (0.1.1); auth via page's `localStorage.userToken.value`, same origin only | `/api/v0/chat/history_messages?chat_session_id=`, `/api/v0/chat_session/fetch_page` (first page only; errors if `has_more`) | Needs logged-in export test; list paging unverified past 54 chats |
+| Gemini | `geminichatsexporter/` | Partly mapped | POST `/_/BardChatUi/data/batchexecute`, rpc `hNvQHb` args `["c_<id>",10,null,1,[1],[4],null,1]` returns turns (replay with page's `WIZ_global_data.SNlM0e` works); rpc `ESY5D` lists chats (args `[null,[5]]`, unmapped) | Text path inside `hNvQHb` response not yet mapped |
 
 Sources reviewed: claude-chat-exporter README (Claude endpoints);
 search results for Grok, Mistral, and DeepSeek returned only third-party
@@ -55,9 +55,9 @@ extensions, not confirmed endpoints.
 - [ ] Verify export on a logged-in chat (user)
 
 ### DeepSeek
-- [ ] Capture requests on chat.deepseek.com (user)
-- [ ] Confirm response shape and auth
-- [ ] Normalizer test, adapter, generated userscript
+- [x] Endpoints, auth, and shapes read from a logged-in page
+- [x] Normalizer test, adapter, generated userscript (0.1.1)
+- [ ] Verify export on a logged-in chat (user)
 
 ### Gemini
 - [ ] Capture requests on gemini.google.com (user); note the batch RPC format
