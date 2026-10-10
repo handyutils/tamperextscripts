@@ -28,9 +28,9 @@ exporter's behavior.
 | ChatGPT | `gptchatsexporter/` | Working (userscript 2.32.1); extension adapter verified on a stubbed page | `/backend-api/conversation/{id}`, `/backend-api/conversations`, `/api/auth/session` | Not verified with a logged-in account |
 | Claude | `claudechatsexporter/` | In progress | `/api/organizations/{org}/chat_conversations/{id}?tree=true&rendering_mode=messages&render_all_tools=true` (org from `lastActiveOrg` cookie) | Needs logged-in check |
 | Grok | `grokchatsexporter/` | Built (0.1.1); endpoints read from a logged-in page; not yet run end-to-end | `/rest/app-chat/conversations_v2/{id}`, `/rest/app-chat/conversations/{id}/response-node`, POST `/rest/app-chat/conversations/{id}/load-responses`, `/rest/app-chat/conversations` (pageToken) | Needs logged-in export test |
-| Mistral (Le Chat) | `mistralchatsexporter/` | Not started | Unknown | No public API found |
+| Mistral (Le Chat) | `mistralchatsexporter/` | Built (0.1.1); endpoints read from a logged-in page; not yet run end-to-end | tRPC GET `chat.byId` (`{json:{id}}`), `message.all` (`{json:{chatId}}`), `chat.last` (paging via date cursor with superjson `meta`) | Needs logged-in export test |
 | DeepSeek | `deepseekchatsexporter/` | Blocked on auth design | `/api/v0/chat/history_messages?chat_session_id=`, `/api/v0/chat_session/fetch_page` | Both need the page's bearer token (INVALID_TOKEN / Missing Token). Decide how the userscript obtains it |
-| Gemini | `geminichatsexporter/` | Not started | Unknown (uses batch RPC) | Endpoints not published |
+| Gemini | `geminichatsexporter/` | Blocked on auth design | `gemini.google.com/_/BardChatUi/data/batchexecute` (rpcids obfuscated) | Calls need the page's anti-CSRF token. Decide how the userscript obtains it; RPC names need mapping |
 
 Sources reviewed: claude-chat-exporter README (Claude endpoints);
 search results for Grok, Mistral, and DeepSeek returned only third-party
@@ -50,9 +50,9 @@ extensions, not confirmed endpoints.
 - [ ] Verify export on a logged-in conversation (user)
 
 ### Mistral (Le Chat)
-- [ ] Capture requests on chat.mistral.ai (user)
-- [ ] Confirm response shape and auth
-- [ ] Normalizer test, adapter, generated userscript
+- [x] Endpoints and shapes read from a logged-in page
+- [x] Normalizer test, adapter, generated userscript (0.1.1)
+- [ ] Verify export on a logged-in chat (user)
 
 ### DeepSeek
 - [ ] Capture requests on chat.deepseek.com (user)

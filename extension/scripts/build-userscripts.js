@@ -33,6 +33,16 @@ const targets = [
       description: "Export grok.com conversations to Markdown, JSON, HTML, or plain text.",
     },
   },
+  {
+    entry: "src/mistral-entry.js",
+    folder: "mistralchatsexporter",
+    file: `Mistral Exporter-${VERSION}.user.js`,
+    header: {
+      name: "Mistral Chat Exporter",
+      match: "https://chat.mistral.ai/*",
+      description: "Export Mistral Le Chat conversations to Markdown, JSON, HTML, or plain text.",
+    },
+  },
 ];
 
 for (const target of targets) {
