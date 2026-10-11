@@ -1,111 +1,80 @@
-*This repository contains the source of the Tampermonkey extension up to version 2.9.*
-*All newer versions are distributed under a proprietary license.*
+# tamperextscripts
 
-Tampermonkey is the most popular userscript manager for Google Chrome.
+Export your AI chats and run your own userscripts, in modern Chrome, without sending anything to a third party.
 
-Features:
- - manage and edit all your userscripts
- - enable and disable your scripts with 2 clicks
- - easily sync you scripts between different Chrome instances
- - search scripts from userscripts.org by URL (with TamperFire enabled)
+- **Website and docs:** https://handyutils.github.io/tamperextscripts/
+- **Community scripts:** https://handyutils.github.io/tamperextscripts/#registry
 
-Beneath of other tags, functions and features the following ones are supported:
- - full unsafeWindow access
- - all GM_* functions including (GM_registerMenuCommand, GM_getResourceText, GM_getResourceURL, GM_notification)
- - a lot of tags supported by Greasemonkey and Scriptish (like @resource, @require, ...)
+## What it does
 
-For a full overview please take a look at the FAQ or just install TM. ;)
+1. **Chat exporters.** Save a conversation as Markdown, JSON, HTML, or plain text, copy it, or export all of your chats. Supported sites: ChatGPT, Claude (including Cowork sessions), Gemini, Grok, Mistral Le Chat, DeepSeek, Qwen, and Z.ai.
+2. **Userscript manager.** Install your own `.user.js` scripts or community scripts from a registry. Each registry entry is pinned by SHA-256, so a changed file is refused.
 
----
+## Install
 
-This code is provided entirely free of charge by the programmer in his spare
-time so donations would be greatly appreciated. Please consider a donation.
+### The extension (manager and ChatGPT exporter)
 
-http://tampermonkey.net/donate.html
+1. Download `tamperextscripts-<version>.zip` from the latest release, or from the website.
+2. Unzip it to a folder you'll keep. Chrome loads the extension from there.
+3. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and choose the folder.
+4. On the extension's details page, turn on **Allow User Scripts**.
 
----
+### An exporter userscript
 
-DOWNLOADS:
+Each site's exporter is a standalone userscript in `community-scripts-registry/<site>chatsexporter/`. Install one with either tool:
 
-Tampermonkey (stable): 
-   https://chrome.google.com/webstore/detail/dhdgffkkebhmkfjojejmpbldmpobfkfo
+- **Tampermonkey:** open the `.user.js` file from the website's download button, then click Install.
+- **The extension:** open its options page, choose the file, and press Install.
 
-Tampermonkey (beta): developer version, might contain bugs!
-   https://chrome.google.com/webstore/detail/gcalenpjmijncebpfijmoaglllgpjagf
+Install one copy of each script. Two copies of the same exporter show two Export buttons.
 
-Tampermonkey (Legacy - Manifest version 1): for browsers based on Chromimum 17.
-   http://tampermonkey.net/crx/tm_legacy.crx
+## Use
 
-Tampermonkey (retro): very old version 1.1.2190, no support!
-   http://tampermonkey.net/crx/tampermonkey_retro.crx
+Open a chat on a supported site and click **Export** in the bottom-right corner, then choose a format. **Export all** saves every chat in your account to one JSON file, and the status line shows progress.
 
----
+Only the visible conversation is exported. Reasoning, tool calls, and hidden messages are left out.
 
-SOURCE:
+## Repository layout
 
-http://code.google.com/p/tampermonkey/
+| Path | What it is |
+| --- | --- |
+| `extension/` | The Manifest V3 extension: manager, options page, ChatGPT exporter. Source in `src/`, tests in `test/`. |
+| `extension/src/providers/` | One adapter per site. Each adapter talks to that site's own web API with the signed-in session. |
+| `community-scripts-registry/` | Generated userscripts for the exporters. |
+| `registry/index.json` | The community registry index that the extension and website read. |
+| `website/` | The documentation site, deployed to GitHub Pages. |
+| `specs/` | Feature specifications and their status. |
+| `docs/` | Roadmap and the legacy Tampermonkey 2.9 README. |
+| `build_sys/`, `src/`, `server/` | The original Tampermonkey 2.9 source, kept as provenance. Not used by the extension. |
 
----
+## Develop
 
-SUPPORT:
+```sh
+cd extension
+npm install
+npm test                  # unit tests
+npm run build             # extension in dist/
+npm run build:userscripts # regenerate community-scripts-registry/
+npm run build:registry    # regenerate registry/index.json (run after script changes)
 
-FAQ: http://tampermonkey.net/faq
-API: http://tampermonkey.net/api
-Meta Data Block: http://tampermonkey.net/metadata
+cd ../website
+npm install
+npm run build             # also packages the extension zip and copies the userscripts
+```
 
-Report Bugs: http://tampermonkey.net/bug
+After changing a userscript, run `build:registry` and commit the scripts and the index together. The registry checks each file against its SHA-256, so a stale index refuses the new file.
 
----
+## Adding a site or a community script
 
-LICENSE: 
+- **A site exporter:** add an adapter in `extension/src/providers/`, a normalizer with tests, and a build target in `extension/scripts/build-userscripts.js`.
+- **A community script:** put the `.user.js` file in a folder under `community-scripts-registry/`, then run `npm run build:registry`.
 
-GPLv3.  See COPYING for details.
+## Status and limits
 
----
+- The ChatGPT, Claude, Mistral, DeepSeek, and Grok exporters have been tested against logged-in accounts. Gemini, Qwen, and Z.ai were tested on the same basis, but are newer.
+- Site APIs are undocumented and can change. If an export fails, check the status line under the buttons, then open an issue.
+- The `Screenshot` export is not implemented.
 
-DEPENDENCIES:
+## Licence and provenance
 
-Google Chrome or Chromium 17 or higher
-
-BASIC BUILD INSTRUCTIONS:
-
-- install Google Chrome or Chromium
-- install Cygwin when using Windows
-- open a konsole/terminal, and type:
-
-cd
-svn checkout http://tampermonkey.googlecode.com/svn/trunk/ tampermonkey-read-only
-cd tampermonkey-read-only
-ln -s build_sys/mkcrxfolder.sh .
-./mkcrxfolder.sh -e0
-
-Depending on your installed browser and OS (I hope this makes the overall scheme clear ;)
-
-chrome.exe --pack-extension=rel/
-chromium.exe --pack-extension=rel/
-
-coogle-chrome --pack-extension=rel/
-chromium-browser --pack-extension=rel/
-
-ls -la now shows two new files:
-
--rw-r--r--  1 user user 305170 Aug 29 09:09 rel.crx
--rw-r--r--  1 user user    916 Aug 29 09:09 rel.pem
-
-rel.crx is the Chrome extension, rel.pem the key to create another Tampermonkey extension file with the same extension ID
-
-You can install rel.crx by drag'n'drop or (depending on your OS)
-
-chrome.exe rel.crx
-chromium.exe rel.crx
-
-coogle-chrome rel.crx
-chromium-browser rel.crx
-
----
-
-This code is provided entirely free of charge by the programmer in his spare
-time so donations would be greatly appreciated. Please consider a donation.
-
-Jan Biniok <jan@biniok.net>
-http://tampermonkey.net/donate.html
+GPL-3.0. The extension and exporters are original work. `build_sys/`, `src/`, and `server/` are the GPL-licensed Tampermonkey 2.9 source, kept for reference, and are not part of the extension. Newer proprietary Tampermonkey code is not used.
