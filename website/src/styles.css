@@ -82,3 +82,14 @@ h1, h2, h3 { line-height: 1.2; }
   .search { margin-left: 0; width: 100%; }
   .hero h1 { font-size: 1.7rem; }
 }
+
+.registry-tools { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.registry-tools .search { margin-left: 0; width: 100%; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  padding: 5px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+  color: var(--ink); cursor: pointer; font-size: 14px;
+}
+.chip.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+.chip:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.card-actions { display: flex; gap: 8px; flex-wrap: wrap; }

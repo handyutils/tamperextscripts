@@ -1,4 +1,85 @@
 {
   "schema": 1,
-  "scripts": []
+  "scripts": [
+    {
+      "id": "chatgpt-chat-exporter-tamperextscripts",
+      "name": "ChatGPT Chat Exporter (tamperextscripts)",
+      "version": "0.1.8",
+      "description": "Export ChatGPT conversations to Markdown, JSON, HTML, or plain text.",
+      "url": "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/community-scripts-registry/gptchatsexporter/ChatGPT%20Exporter%20(tamperextscripts)-0.1.8.user.js",
+      "sha256": "d59539f3d1a32137c21638bd6c89937c70ec8d73b942f442f6483965bdca9099",
+      "license": "GPL-3.0-only",
+      "category": "Chat export"
+    },
+    {
+      "id": "claude-chat-exporter",
+      "name": "Claude Chat Exporter",
+      "version": "0.1.8",
+      "description": "Export claude.ai conversations to Markdown, JSON, HTML, or plain text.",
+      "url": "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/community-scripts-registry/claudechatsexporter/Claude%20Exporter-0.1.8.user.js",
+      "sha256": "0bcf4faef505f68dbb268956c6d863b3963f0151336fbebf45fd04928ab7eebf",
+      "license": "GPL-3.0-only",
+      "category": "Chat export"
+    },
+    {
+      "id": "deepseek-chat-exporter",
+      "name": "DeepSeek Chat Exporter",
+      "version": "0.1.8",
+      "description": "Export DeepSeek conversations to Markdown, JSON, HTML, or plain text.",
+      "url": "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/community-scripts-registry/deepseekchatsexporter/DeepSeek%20Exporter-0.1.8.user.js",
+      "sha256": "6c4a66e5849fd5623a3876159dd4a03c42d489af9238ad64c7b99d2dbae47b0b",
+      "license": "GPL-3.0-only",
+      "category": "Chat export"
+    },
+    {
+      "id": "gemini-chat-exporter",
+      "name": "Gemini Chat Exporter",
+      "version": "0.1.8",
+      "description": "Export Gemini conversations to Markdown, JSON, HTML, or plain text.",
+      "url": "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/community-scripts-registry/geminichatsexporter/Gemini%20Exporter-0.1.8.user.js",
+      "sha256": "7a6b288b2d5cfc5e71977f0dee6162f33a3eddbc47d1c6c7dc18499e009d6999",
+      "license": "GPL-3.0-only",
+      "category": "Chat export"
+    },
+    {
+      "id": "grok-chat-exporter",
+      "name": "Grok Chat Exporter",
+      "version": "0.1.8",
+      "description": "Export grok.com conversations to Markdown, JSON, HTML, or plain text.",
+      "url": "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/community-scripts-registry/grokchatsexporter/Grok%20Exporter-0.1.8.user.js",
+      "sha256": "5c621688484327c420d87deb613299c99ed9d3f9f97b30b690b89f800b419fa7",
+      "license": "GPL-3.0-only",
+      "category": "Chat export"
+    },
+    {
+      "id": "mistral-chat-exporter",
+      "name": "Mistral Chat Exporter",
+      "version": "0.1.8",
+      "description": "Export Mistral Le Chat conversations to Markdown, JSON, HTML, or plain text.",
+      "url": "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/community-scripts-registry/mistralchatsexporter/Mistral%20Exporter-0.1.8.user.js",
+      "sha256": "bbdf5a82eb5a1858243f9936b5ef61ec523c37dc2229fe886c6df62322aaa4f9",
+      "license": "GPL-3.0-only",
+      "category": "Chat export"
+    },
+    {
+      "id": "qwen-chat-exporter",
+      "name": "Qwen Chat Exporter",
+      "version": "0.1.8",
+      "description": "Export Qwen conversations to Markdown, JSON, HTML, or plain text.",
+      "url": "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/community-scripts-registry/qwenchatsexporter/Qwen%20Exporter-0.1.8.user.js",
+      "sha256": "105e60d00733127eee28d19ab40e95c457518eca03a70bd8056f953d3740475f",
+      "license": "GPL-3.0-only",
+      "category": "Chat export"
+    },
+    {
+      "id": "z-ai-chat-exporter",
+      "name": "Z.ai Chat Exporter",
+      "version": "0.1.8",
+      "description": "Export Z.ai conversations to Markdown, JSON, HTML, or plain text.",
+      "url": "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/community-scripts-registry/zaichatsexporter/Z.ai%20Exporter-0.1.8.user.js",
+      "sha256": "18778b4c285c6b5c8c9cbf991c32123ca8f63babb59e26df9f0f6c4c5ff549b3",
+      "license": "GPL-3.0-only",
+      "category": "Chat export"
+    }
+  ]
 }

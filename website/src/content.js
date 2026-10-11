@@ -7,6 +7,67 @@ export const REGISTRY_INDEX =
 export const EXTENSION_VERSION = "0.1.0";
 export const EXTENSION_ZIP = `downloads/tamperextscripts-${EXTENSION_VERSION}.zip`;
 
+// One entry per supported chat site. The folder and file name match the
+// generated userscript in community-scripts-registry/.
+export const siteGuides = [
+  {
+    name: "ChatGPT",
+    where: "chatgpt.com, chat.openai.com",
+    how: "Built into the extension. Open a conversation and click Export. You can also install the userscript instead.",
+    folder: "gptchatsexporter",
+    file: "ChatGPT Exporter (tamperextscripts)-0.1.8.user.js",
+  },
+  {
+    name: "Claude",
+    where: "claude.ai (chats and Cowork sessions)",
+    how: "Open a chat or a Cowork session. Click Export, then choose a format. Cowork sessions export their prompts and visible replies.",
+    folder: "claudechatsexporter",
+    file: "Claude Exporter-0.1.8.user.js",
+  },
+  {
+    name: "Gemini",
+    where: "gemini.google.com",
+    how: "Open a chat and click Export. Long chats load in pages, and the status line shows progress.",
+    folder: "geminichatsexporter",
+    file: "Gemini Exporter-0.1.8.user.js",
+  },
+  {
+    name: "Grok",
+    where: "grok.com",
+    how: "Open a conversation and click Export. Export all saves every chat in your list in one JSON file.",
+    folder: "grokchatsexporter",
+    file: "Grok Exporter-0.1.8.user.js",
+  },
+  {
+    name: "Mistral Le Chat",
+    where: "chat.mistral.ai",
+    how: "Open a chat and click Export. Export all pages through your chat list.",
+    folder: "mistralchatsexporter",
+    file: "Mistral Exporter-0.1.8.user.js",
+  },
+  {
+    name: "DeepSeek",
+    where: "chat.deepseek.com",
+    how: "Open a chat and click Export. The script uses the token your browser already holds for this site; it is never stored or sent elsewhere.",
+    folder: "deepseekchatsexporter",
+    file: "DeepSeek Exporter-0.1.8.user.js",
+  },
+  {
+    name: "Qwen",
+    where: "chat.qwen.ai",
+    how: "Open a chat and click Export. Only the visible answer is exported, not the reasoning.",
+    folder: "qwenchatsexporter",
+    file: "Qwen Exporter-0.1.8.user.js",
+  },
+  {
+    name: "Z.ai",
+    where: "chat.z.ai",
+    how: "Open a chat and click Export. Only the visible answer is exported, not the reasoning or tool calls.",
+    folder: "zaichatsexporter",
+    file: "Z.ai Exporter-0.1.8.user.js",
+  },
+];
+
 export const sections = [
   {
     id: "overview",
@@ -77,6 +138,14 @@ export const sections = [
       "Conversation data is only sent to the site it came from, and only when you export. Nothing goes to analytics or telemetry.",
       "To report a vulnerability, open a private security advisory on GitHub rather than a public issue.",
     ],
+  },
+  {
+    id: "sites",
+    title: "Chat exporters by site",
+    body: [
+      "Each supported site has its own exporter. Open a chat on that site, click Export, then pick a format. Every exporter offers Markdown, JSON, HTML, plain text, copy, and export all.",
+    ],
+    siteGuides: true,
   },
   {
     id: "faq",

@@ -8,7 +8,8 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "build": "node scripts/build.js",
-    "build:userscripts": "node scripts/build-userscripts.js"
+    "build:userscripts": "node scripts/build-userscripts.js",
+    "build:registry": "node scripts/build-registry.js"
   },
   "engines": {
     "node": ">=20"
