@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         DeepSeek Chat Exporter
+// @name         Grok Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.6
-// @description  Export DeepSeek conversations to Markdown, JSON, HTML, or plain text.
+// @version      0.1.8
+// @description  Export grok.com conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
-// @match        https://chat.deepseek.com/*
+// @match        https://grok.com/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -196,73 +196,84 @@ ${m.text}`
     return style;
   }
 
-  // src/providers/deepseek-normalize.js
-  var ROLE = { USER: "user", ASSISTANT: "assistant" };
-  var TEXT_FRAGMENT = { USER: "REQUEST", ASSISTANT: "RESPONSE" };
-  function normalizeDeepSeekConversation(session, messages) {
-    const byId = new Map(messages.map((m) => [m.message_id, m]));
+  // src/providers/grok-normalize.js
+  var ROLE_BY_SENDER = { human: "user", assistant: "assistant" };
+  function normalizeGrokConversation(meta, tree, loaded) {
+    const byId = new Map(loaded.responses.map((r) => [r.responseId, r]));
+    const nodes = new Map(tree.responseNodes.map((n) => [n.responseId, n]));
+    const parents = new Set(tree.responseNodes.map((n) => n.parentResponseId).filter(Boolean));
+    const leaves = tree.responseNodes.filter((n) => !parents.has(n.responseId));
+    const newest = (ids) => ids.reduce((best, id) => timeOf(byId.get(id)) > timeOf(byId.get(best)) ? id : best);
+    let cur = leaves.length ? newest(leaves.map((n) => n.responseId)) : null;
     const branch = [];
     const seen = /* @__PURE__ */ new Set();
-    let cur = byId.get(session.current_message_id);
-    while (cur && !seen.has(cur.message_id)) {
-      seen.add(cur.message_id);
-      branch.push(cur);
-      cur = byId.get(cur.parent_id);
+    while (cur && nodes.has(cur) && !seen.has(cur)) {
+      seen.add(cur);
+      branch.push(byId.get(cur));
+      cur = nodes.get(cur).parentResponseId || null;
     }
     branch.reverse();
-    const out = branch.filter((m) => ROLE[m.role]).map((m) => ({
-      role: ROLE[m.role],
-      text: (m.fragments ?? []).filter((f) => f.type === TEXT_FRAGMENT[m.role] && typeof f.content === "string").map((f) => f.content.trim()).filter(Boolean).join("\n\n"),
-      createTime: m.inserted_at ? m.inserted_at : null
-    })).filter((m) => m.text);
+    const messages = branch.filter(Boolean).map((r) => ({
+      role: ROLE_BY_SENDER[r.sender],
+      text: typeof r.message === "string" ? r.message.trim() : "",
+      createTime: r.createTime ? Math.floor(Date.parse(r.createTime) / 1e3) : null
+    })).filter((m) => m.role && m.text);
     return {
-      id: session.id ?? "",
-      title: session.title || "Untitled conversation",
-      createTime: session.updated_at ?? null,
-      messages: out
+      id: meta.conversation?.conversationId ?? "",
+      title: meta.conversation?.title || "Untitled conversation",
+      createTime: meta.conversation?.createTime ? Math.floor(Date.parse(meta.conversation.createTime) / 1e3) : null,
+      messages
     };
   }
+  function timeOf(response) {
+    return response?.createTime ? Date.parse(response.createTime) : 0;
+  }
 
-  // src/providers/deepseek.js
-  var SESSION_PATH = /^\/a\/chat\/s\/([0-9a-f-]+)/i;
-  var deepseekAdapter = {
-    name: "DeepSeek",
+  // src/providers/grok.js
+  var CONVERSATION_PATH = /^\/c\/([0-9a-f-]+)/i;
+  var grokAdapter = {
+    name: "Grok",
     currentConversationId() {
-      return SESSION_PATH.exec(location.pathname)?.[1] ?? null;
+      return CONVERSATION_PATH.exec(location.pathname)?.[1] ?? null;
     },
     async loadConversation(id) {
-      const data = await api(`/api/v0/chat/history_messages?chat_session_id=${encodeURIComponent(id)}`);
-      return normalizeDeepSeekConversation(data.chat_session, data.chat_messages);
+      const meta = await getJson(`/rest/app-chat/conversations_v2/${id}?includeWorkspaces=true&includeTaskResult=true`);
+      const tree = await getJson(`/rest/app-chat/conversations/${id}/response-node`);
+      const loaded = await postJson(`/rest/app-chat/conversations/${id}/load-responses`, {
+        responseIds: tree.responseNodes.map((n) => n.responseId)
+      });
+      return normalizeGrokConversation(meta, tree, loaded);
     },
     async listConversations() {
-      const page = await api("/api/v0/chat_session/fetch_page?lte_cursor.pinned=false");
-      if (page.has_more) {
-        throw new Error("This account has more chats than the DeepSeek exporter can list yet.");
-      }
-      return page.chat_sessions.map((s) => ({ id: s.id, title: s.title }));
+      const items = [];
+      let token = null;
+      do {
+        const query = new URLSearchParams({ pageSize: "60" });
+        if (token) query.set("pageToken", token);
+        const page = await getJson(`/rest/app-chat/conversations?${query}`);
+        for (const c of page.conversations ?? []) items.push({ id: c.conversationId, title: c.title });
+        token = page.nextPageToken || null;
+      } while (token);
+      return items;
     }
   };
-  function userToken() {
-    const raw = localStorage.getItem("userToken");
-    if (!raw) throw new Error("Not signed in to DeepSeek (no session token on this page).");
-    try {
-      return JSON.parse(raw).value;
-    } catch {
-      return raw;
-    }
+  async function getJson(path) {
+    return request(path, { headers: { Accept: "application/json" } });
   }
-  async function api(path) {
-    const response = await fetch(path, {
-      credentials: "include",
-      headers: { Accept: "application/json", Authorization: `Bearer ${userToken()}` }
+  async function postJson(path, body) {
+    return request(path, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(body)
     });
-    if (response.status === 429) throw new Error("DeepSeek is rate limiting requests; try again later.");
-    if (!response.ok) throw new Error(`DeepSeek request failed: ${response.status} ${path.split("?")[0]}`);
-    const body = await response.json();
-    if (body.code !== 0) throw new Error(`DeepSeek error ${body.code}: ${body.msg}`);
-    return body.data.biz_data;
+  }
+  async function request(path, init) {
+    const response = await fetch(path, { credentials: "include", ...init });
+    if (response.status === 429) throw new Error("Grok is rate limiting requests; try again later.");
+    if (!response.ok) throw new Error(`Grok request failed: ${response.status} ${path}`);
+    return response.json();
   }
 
-  // src/deepseek-entry.js
-  mountWidget(deepseekAdapter);
+  // src/grok-entry.js
+  mountWidget(grokAdapter);
 })();

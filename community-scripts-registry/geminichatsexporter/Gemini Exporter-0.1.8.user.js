@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Grok Chat Exporter
+// @name         Gemini Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.6
-// @description  Export grok.com conversations to Markdown, JSON, HTML, or plain text.
+// @version      0.1.8
+// @description  Export Gemini conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
-// @match        https://grok.com/*
+// @match        https://gemini.google.com/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -196,84 +196,87 @@ ${m.text}`
     return style;
   }
 
-  // src/providers/grok-normalize.js
-  var ROLE_BY_SENDER = { human: "user", assistant: "assistant" };
-  function normalizeGrokConversation(meta, tree, loaded) {
-    const byId = new Map(loaded.responses.map((r) => [r.responseId, r]));
-    const nodes = new Map(tree.responseNodes.map((n) => [n.responseId, n]));
-    const parents = new Set(tree.responseNodes.map((n) => n.parentResponseId).filter(Boolean));
-    const leaves = tree.responseNodes.filter((n) => !parents.has(n.responseId));
-    const newest = (ids) => ids.reduce((best, id) => timeOf(byId.get(id)) > timeOf(byId.get(best)) ? id : best);
-    let cur = leaves.length ? newest(leaves.map((n) => n.responseId)) : null;
-    const branch = [];
-    const seen = /* @__PURE__ */ new Set();
-    while (cur && nodes.has(cur) && !seen.has(cur)) {
-      seen.add(cur);
-      branch.push(byId.get(cur));
-      cur = nodes.get(cur).parentResponseId || null;
+  // src/providers/gemini-normalize.js
+  function normalizeGeminiConversation(meta, turns) {
+    const messages = [];
+    for (const turn of [...turns].reverse()) {
+      const time = turn?.[4]?.[0] ?? null;
+      const user = turn?.[2]?.[0]?.[0];
+      const answer = turn?.[3]?.[0]?.[0]?.[1]?.[0];
+      if (typeof user === "string" && user.trim()) messages.push({ role: "user", text: user.trim(), createTime: time });
+      if (typeof answer === "string" && answer.trim()) messages.push({ role: "assistant", text: answer.trim(), createTime: time });
     }
-    branch.reverse();
-    const messages = branch.filter(Boolean).map((r) => ({
-      role: ROLE_BY_SENDER[r.sender],
-      text: typeof r.message === "string" ? r.message.trim() : "",
-      createTime: r.createTime ? Math.floor(Date.parse(r.createTime) / 1e3) : null
-    })).filter((m) => m.role && m.text);
-    return {
-      id: meta.conversation?.conversationId ?? "",
-      title: meta.conversation?.title || "Untitled conversation",
-      createTime: meta.conversation?.createTime ? Math.floor(Date.parse(meta.conversation.createTime) / 1e3) : null,
-      messages
-    };
+    return { id: meta.id ?? "", title: meta.title || "Untitled conversation", createTime: null, messages };
   }
-  function timeOf(response) {
-    return response?.createTime ? Date.parse(response.createTime) : 0;
+  function parseBatchResponse(text) {
+    const line = text.split("\n").find((l) => l.includes("wrb.fr"));
+    if (!line) return null;
+    const payload = JSON.parse(line)[0]?.[2];
+    return payload ? JSON.parse(payload) : null;
+  }
+  function extractAtToken(html) {
+    return /"SNlM0e":"([^"]+)"/.exec(html)?.[1] ?? null;
   }
 
-  // src/providers/grok.js
-  var CONVERSATION_PATH = /^\/c\/([0-9a-f-]+)/i;
-  var grokAdapter = {
-    name: "Grok",
+  // src/providers/gemini.js
+  var CHAT_PATH = /\/app\/([0-9a-f]{16})/i;
+  var ENDPOINT = "/_/BardChatUi/data/batchexecute";
+  var titles = /* @__PURE__ */ new Map();
+  var geminiAdapter = {
+    name: "Gemini",
     currentConversationId() {
-      return CONVERSATION_PATH.exec(location.pathname)?.[1] ?? null;
+      return CHAT_PATH.exec(location.pathname)?.[1] ?? null;
     },
-    async loadConversation(id) {
-      const meta = await getJson(`/rest/app-chat/conversations_v2/${id}?includeWorkspaces=true&includeTaskResult=true`);
-      const tree = await getJson(`/rest/app-chat/conversations/${id}/response-node`);
-      const loaded = await postJson(`/rest/app-chat/conversations/${id}/load-responses`, {
-        responseIds: tree.responseNodes.map((n) => n.responseId)
-      });
-      return normalizeGrokConversation(meta, tree, loaded);
+    async loadConversation(id, progress = () => {
+    }) {
+      progress("Reading your Gemini session...");
+      const at = await requestToken();
+      const turns = [];
+      let cursor = null;
+      do {
+        const page = await rpc("hNvQHb", ["c_" + id, 100, cursor, 1, [1], [4], null, 1], at, `/app/${id}`);
+        turns.push(...page?.[0] ?? []);
+        progress(`Loading messages... ${turns.length} turns`);
+        cursor = typeof page?.[1] === "string" ? page[1] : null;
+      } while (cursor);
+      const title = titles.get(id) ?? document.title.replace(/\s*-\s*Google Gemini\s*$/i, "");
+      return normalizeGeminiConversation({ id, title }, turns);
     },
     async listConversations() {
+      const at = await requestToken();
       const items = [];
-      let token = null;
+      let cursor = null;
       do {
-        const query = new URLSearchParams({ pageSize: "60" });
-        if (token) query.set("pageToken", token);
-        const page = await getJson(`/rest/app-chat/conversations?${query}`);
-        for (const c of page.conversations ?? []) items.push({ id: c.conversationId, title: c.title });
-        token = page.nextPageToken || null;
-      } while (token);
+        const page = await rpc("MaZiqc", [50, cursor, [0, null, 1]], at, "/app");
+        for (const item of page?.[2] ?? []) {
+          const id = String(item[0]).replace(/^c_/, "");
+          titles.set(id, item[1] ?? "");
+          items.push({ id, title: item[1] ?? "" });
+        }
+        cursor = typeof page?.[1] === "string" ? page[1] : null;
+      } while (cursor);
       return items;
     }
   };
-  async function getJson(path) {
-    return request(path, { headers: { Accept: "application/json" } });
+  async function requestToken() {
+    const response = await fetch("/app", { credentials: "include" });
+    const token = extractAtToken(await response.text());
+    if (!token) throw new Error("Not signed in to Gemini (no request token on the page).");
+    return token;
   }
-  async function postJson(path, body) {
-    return request(path, {
+  async function rpc(name, args, at, sourcePath) {
+    const body = new URLSearchParams({ "f.req": JSON.stringify([[[name, JSON.stringify(args), null, "generic"]]]), at });
+    const response = await fetch(`${ENDPOINT}?rpcids=${name}&source-path=${encodeURIComponent(sourcePath)}&hl=en&rt=c`, {
       method: "POST",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      credentials: "include",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body
     });
-  }
-  async function request(path, init) {
-    const response = await fetch(path, { credentials: "include", ...init });
-    if (response.status === 429) throw new Error("Grok is rate limiting requests; try again later.");
-    if (!response.ok) throw new Error(`Grok request failed: ${response.status} ${path}`);
-    return response.json();
+    if (response.status === 429) throw new Error("Gemini is rate limiting requests; try again later.");
+    if (!response.ok) throw new Error(`Gemini request failed: ${response.status} ${name}`);
+    return parseBatchResponse(await response.text());
   }
 
-  // src/grok-entry.js
-  mountWidget(grokAdapter);
+  // src/gemini-entry.js
+  mountWidget(geminiAdapter);
 })();

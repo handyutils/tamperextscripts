@@ -1,10 +1,11 @@
 // ==UserScript==
-// @name         Claude Chat Exporter
+// @name         ChatGPT Chat Exporter (tamperextscripts)
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.6
-// @description  Export claude.ai conversations to Markdown, JSON, HTML, or plain text.
+// @version      0.1.8
+// @description  Export ChatGPT conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
-// @match        https://claude.ai/*
+// @match        https://chatgpt.com/*
+// @match        https://chat.openai.com/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -196,169 +197,150 @@ ${m.text}`
     return style;
   }
 
-  // src/providers/claude-normalize.js
-  var ROLE_BY_SENDER = { human: "user", assistant: "assistant" };
-  function normalizeClaudeConversation(raw) {
-    const byUuid = new Map((raw.chat_messages ?? []).map((m) => [m.uuid, m]));
+  // src/auth.js
+  function buildAuthHeaders(accessToken, accountId) {
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      "X-Authorization": `Bearer ${accessToken}`
+    };
+    if (accountId) headers["Chatgpt-Account-Id"] = accountId;
+    return headers;
+  }
+  function workspaceAccountId(accountsCheck, workspaceCookie) {
+    if (!workspaceCookie) return null;
+    return accountsCheck?.accounts?.[workspaceCookie]?.account?.account_id ?? null;
+  }
+  function readCookie(cookieString, name) {
+    for (const part of cookieString.split(";")) {
+      const [key, ...rest] = part.trim().split("=");
+      if (key === name) return rest.join("=");
+    }
+    return void 0;
+  }
+
+  // src/api.js
+  var SESSION_PATH = "/api/auth/session";
+  var ACCOUNTS_CHECK_PATH = "/backend-api/accounts/check/v4-2023-04-27";
+  var CONVERSATION_PATH = "/backend-api/conversation";
+  var CONVERSATIONS_PATH = "/backend-api/conversations";
+  async function getAuth() {
+    const session = await getJson(SESSION_PATH);
+    if (!session?.accessToken) {
+      throw new Error("Not signed in to ChatGPT (no access token in session).");
+    }
+    let accountId = null;
+    const workspace = readCookie(document.cookie, "_account");
+    if (workspace) {
+      const accountsCheck = await getJson(ACCOUNTS_CHECK_PATH, buildAuthHeaders(session.accessToken, null));
+      accountId = workspaceAccountId(accountsCheck, workspace);
+    }
+    return { headers: buildAuthHeaders(session.accessToken, accountId) };
+  }
+  async function fetchConversation(id, auth) {
+    return getJson(`${CONVERSATION_PATH}/${encodeURIComponent(id)}`, auth.headers);
+  }
+  async function listConversations({ offset, limit }, auth) {
+    const query = new URLSearchParams({
+      offset: String(offset),
+      limit: String(limit),
+      order: "updated"
+    });
+    return getJson(`${CONVERSATIONS_PATH}?${query}`, auth.headers);
+  }
+  async function getJson(path, headers = {}) {
+    const response = await fetch(path, {
+      credentials: "include",
+      headers: { Accept: "application/json", ...headers }
+    });
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After");
+      throw new Error(
+        `ChatGPT is rate limiting requests${retryAfter ? `; retry after ${retryAfter} seconds` : ""}.`
+      );
+    }
+    if (!response.ok) {
+      throw new Error(`ChatGPT request failed: ${response.status} ${path}`);
+    }
+    return response.json();
+  }
+
+  // src/conversation.js
+  var VISIBLE_ROLES = /* @__PURE__ */ new Set(["user", "assistant"]);
+  var DEFAULT_TITLE = "Untitled conversation";
+  function normalizeConversation(raw) {
+    const mapping = raw.mapping ?? {};
+    const messages = activeBranch(mapping, raw.current_node).map((node) => toMessage(node.message)).filter(Boolean);
+    return {
+      id: raw.conversation_id ?? raw.id ?? "",
+      title: raw.title || DEFAULT_TITLE,
+      createTime: raw.create_time ?? null,
+      messages
+    };
+  }
+  function activeBranch(mapping, currentNode) {
     const branch = [];
     const seen = /* @__PURE__ */ new Set();
-    let cur = byUuid.get(raw.current_leaf_message_uuid);
-    while (cur && !seen.has(cur.uuid)) {
-      seen.add(cur.uuid);
-      branch.push(cur);
-      cur = byUuid.get(cur.parent_message_uuid);
+    let id = currentNode;
+    while (id && mapping[id] && !seen.has(id)) {
+      seen.add(id);
+      branch.push(mapping[id]);
+      id = mapping[id].parent;
     }
-    branch.reverse();
-    const messages = branch.map((m) => ({
-      role: ROLE_BY_SENDER[m.sender],
-      text: textOf(m.content),
-      createTime: m.created_at ? Math.floor(Date.parse(m.created_at) / 1e3) : null
-    })).filter((m) => m.role && m.text);
+    return branch.reverse();
+  }
+  var HIDDEN_CONTENT_TYPES = /* @__PURE__ */ new Set(["thoughts", "reasoning_recap"]);
+  function toMessage(message) {
+    if (!message) return null;
+    if (message.metadata?.is_visually_hidden_from_conversation) return null;
+    if (message.recipient && message.recipient !== "all") return null;
+    if (HIDDEN_CONTENT_TYPES.has(message.content?.content_type)) return null;
+    const role = message.author?.role;
+    if (!VISIBLE_ROLES.has(role)) return null;
     return {
-      id: raw.uuid ?? "",
-      title: raw.name || "Untitled conversation",
-      createTime: raw.created_at ? Math.floor(Date.parse(raw.created_at) / 1e3) : null,
-      messages
+      role,
+      text: partsToText(message.content),
+      createTime: message.create_time ?? null
     };
   }
-  function textOf(blocks) {
-    return (blocks ?? []).filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text.trim()).filter(Boolean).join("\n\n");
+  function partsToText(content) {
+    const parts = content?.parts ?? [];
+    return parts.map((part) => {
+      if (typeof part === "string") return part;
+      if (typeof part?.text === "string") return part.text;
+      return "[non-text content]";
+    }).join("");
   }
 
-  // src/providers/claude-orgs.js
-  function orderOrganizations(organizations, cookieOrg) {
-    const ids = organizations.map((o) => o.uuid);
-    return ids.includes(cookieOrg) ? [cookieOrg, ...ids.filter((id) => id !== cookieOrg)] : ids;
-  }
-
-  // src/providers/claude-cowork-normalize.js
-  function normalizeCoworkSession(rawSession, events) {
-    const session = rawSession.response_shape ?? rawSession;
-    const messages = [...events].sort((a, b) => Number(a.sequence_num) - Number(b.sequence_num)).map(toMessage).filter((m) => m && m.text);
-    return {
-      id: session.id ?? "",
-      title: session.title || session.post_turn_summary?.title || "Untitled conversation",
-      createTime: session.created_at ? Math.floor(Date.parse(session.created_at) / 1e3) : null,
-      messages
-    };
-  }
-  function toMessage(event) {
-    if (event.event_type !== "user" && event.event_type !== "assistant") return null;
-    const content = event.payload?.message?.content;
-    const text = typeof content === "string" ? content.trim() : (content ?? []).filter((b) => b.type === "text" && typeof b.text === "string").map((b) => b.text.trim()).filter(Boolean).join("\n\n");
-    const stamp = event.payload?.timestamp;
-    return {
-      role: event.event_type,
-      text,
-      createTime: stamp ? Math.floor(Date.parse(stamp) / 1e3) : null
-    };
-  }
-
-  // src/providers/claude-cowork-pick.js
-  var normalize = (value) => String(value ?? "").replace(/\s*-\s*Claude\s*$/i, "").trim().toLowerCase();
-  function pickCoworkSession(sessions, pageTitle) {
-    const wanted = normalize(pageTitle);
-    if (!wanted) return { error: "none" };
-    const matches = sessions.filter((s) => normalize(s.title) === wanted);
-    if (matches.length === 1) return { id: matches[0].id };
-    if (matches.length === 0) return { error: "none" };
-    return { error: "ambiguous", count: matches.length };
-  }
-
-  // src/providers/claude.js
-  var CONVERSATION_PATH = /^\/chat\/([0-9a-f-]+)/i;
-  var claudeAdapter = {
-    name: "Claude",
+  // src/providers/chatgpt.js
+  var CONVERSATION_PATTERN = /^\/(?:g\/[^/]+\/)?c\/([0-9a-f-]+)/i;
+  var LIST_PAGE_SIZE = 28;
+  var chatgptAdapter = {
+    name: "ChatGPT",
     currentConversationId() {
-      return CONVERSATION_PATH.exec(location.pathname)?.[1] ?? null;
+      return CONVERSATION_PATTERN.exec(location.pathname)?.[1] ?? null;
     },
-    async loadConversation(id, progress = () => {
-    }) {
-      let notFound = false;
-      progress("Checking your Claude account...");
-      for (const org of await organizationIds()) {
-        const url = `/api/organizations/${org}/chat_conversations/${id}?tree=true&rendering_mode=messages&render_all_tools=true`;
-        const response = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
-        if (response.status === 404) {
-          notFound = true;
-          continue;
-        }
-        return normalizeClaudeConversation(await parse(response, url));
-      }
-      if (notFound) progress("Looking for the Cowork session...");
-      const coworkId = notFound ? await coworkSessionId() : null;
-      if (coworkId) return loadCoworkSession(coworkId, progress);
-      if (notFound) {
-        throw new Error(`This conversation was not found in the signed-in Claude account (${await signedInEmail()}). Sign in to the account that owns it.`);
-      }
-      throw new Error("Not signed in to Claude (no organizations found).");
+    async loadConversation(id) {
+      const auth = await getAuth();
+      const raw = await fetchConversation(id, auth);
+      return normalizeConversation({ ...raw, conversation_id: id });
     },
     async listConversations() {
+      const auth = await getAuth();
       const items = [];
-      for (const org of await organizationIds()) {
-        const list = await getJson(`/api/organizations/${org}/chat_conversations`);
-        items.push(...list.map((c) => ({ id: c.uuid, title: c.name, org })));
+      let offset = 0;
+      let total = Infinity;
+      while (offset < total) {
+        const page = await listConversations({ offset, limit: LIST_PAGE_SIZE }, auth);
+        total = page.total ?? 0;
+        const batch = page.items ?? [];
+        if (batch.length === 0) break;
+        items.push(...batch.map((c) => ({ id: c.id, title: c.title })));
+        offset += batch.length;
       }
       return items;
     }
   };
-  async function coworkSessionId() {
-    const fromUrl = /\/cowork\/(cse_[A-Za-z0-9]+)/.exec(location.pathname)?.[1];
-    if (fromUrl) return fromUrl;
-    const list = await coworkJson("/v1/code/sessions?limit=50").catch(() => null);
-    if (list) {
-      const pick = pickCoworkSession(list.data ?? [], document.title);
-      if (pick.id) return pick.id;
-      if (pick.error === "ambiguous") {
-        throw new Error(`${pick.count} Cowork sessions share this title, so the right one can't be chosen. Rename one of them and try again.`);
-      }
-    }
-    const ids = performance.getEntriesByType("resource").map((e) => /\/v1\/code\/sessions\/(cse_[A-Za-z0-9]+)/.exec(e.name)?.[1]).filter(Boolean);
-    return ids.at(-1) ?? null;
-  }
-  var COWORK_HEADERS = { Accept: "application/json", "anthropic-version": "2023-06-01" };
-  async function loadCoworkSession(sessionId, progress) {
-    const session = await coworkJson(`/v1/code/sessions/${sessionId}`);
-    const events = [];
-    let cursor = null;
-    let total = null;
-    do {
-      const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
-      const page = await coworkJson(`/v1/code/sessions/${sessionId}/events${query}`);
-      if (total === null) total = Number(page.data?.[0]?.sequence_num) || null;
-      events.push(...page.data ?? []);
-      progress(total ? `Loading messages... ${Math.min(100, Math.round(events.length / total * 100))}%` : `Loading messages... ${events.length} events`);
-      cursor = page.next_cursor && page.next_cursor !== cursor ? page.next_cursor : null;
-    } while (cursor);
-    progress("Building the file...");
-    return normalizeCoworkSession(session, events);
-  }
-  async function coworkJson(path) {
-    const response = await fetch(path, { credentials: "include", headers: COWORK_HEADERS });
-    return parse(response, path);
-  }
-  async function signedInEmail() {
-    try {
-      return (await getJson("/api/account")).email_address ?? "unknown account";
-    } catch {
-      return "unknown account";
-    }
-  }
-  async function organizationIds() {
-    const organizations = await getJson("/api/organizations");
-    const cookie = /(?:^|;\s*)lastActiveOrg=([^;]+)/.exec(document.cookie);
-    return orderOrganizations(organizations, cookie ? decodeURIComponent(cookie[1]) : null);
-  }
-  async function getJson(url) {
-    const response = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
-    return parse(response, url);
-  }
-  async function parse(response, url) {
-    if (response.status === 429) throw new Error("Claude is rate limiting requests; try again later.");
-    if (!response.ok) throw new Error(`Claude request failed: ${response.status} ${url.split("?")[0]}`);
-    return response.json();
-  }
 
-  // src/claude-entry.js
-  mountWidget(claudeAdapter);
+  // src/chatgpt-entry.js
+  mountWidget(chatgptAdapter);
 })();

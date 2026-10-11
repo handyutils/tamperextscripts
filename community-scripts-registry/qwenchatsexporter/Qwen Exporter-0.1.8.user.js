@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Mistral Chat Exporter
+// @name         Qwen Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.6
-// @description  Export Mistral Le Chat conversations to Markdown, JSON, HTML, or plain text.
+// @version      0.1.8
+// @description  Export Qwen conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
-// @match        https://chat.mistral.ai/*
+// @match        https://chat.qwen.ai/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -196,63 +196,70 @@ ${m.text}`
     return style;
   }
 
-  // src/providers/mistral-normalize.js
-  var ROLE = { user: "user", assistant: "assistant" };
-  function normalizeMistralConversation(chat, items) {
-    const messages = [...items].sort((a, b) => (a.turn ?? 0) - (b.turn ?? 0) || Date.parse(a.createdAt) - Date.parse(b.createdAt)).map((m) => ({
-      role: ROLE[m.role],
-      text: typeof m.content === "string" ? m.content.trim() : "",
-      createTime: m.createdAt ? Math.floor(Date.parse(m.createdAt) / 1e3) : null
-    })).filter((m) => m.role && m.text);
+  // src/providers/qwen-normalize.js
+  var ROLES = /* @__PURE__ */ new Set(["user", "assistant"]);
+  function normalizeQwenConversation(data) {
+    const history = data.chat?.history ?? {};
+    const byId = history.messages ?? {};
+    const branch = [];
+    const seen = /* @__PURE__ */ new Set();
+    let cur = byId[history.currentId ?? data.currentId];
+    while (cur && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      branch.push(cur);
+      cur = byId[cur.parentId];
+    }
+    branch.reverse();
+    const messages = branch.filter((msg) => ROLES.has(msg.role)).map((msg) => ({
+      role: msg.role,
+      text: typeof msg.content === "string" ? msg.content.trim() : "",
+      createTime: msg.timestamp ?? null
+    })).filter((msg) => msg.text);
     return {
-      id: chat.id ?? "",
-      title: chat.title || "Untitled conversation",
-      createTime: chat.updatedAt ? Math.floor(Date.parse(chat.updatedAt) / 1e3) : null,
+      id: data.id ?? "",
+      title: data.title || "Untitled conversation",
+      createTime: data.created_at ?? null,
       messages
     };
   }
 
-  // src/providers/mistral.js
-  var CHAT_PATH = /^\/work\/([0-9a-f-]+)/i;
-  var mistralAdapter = {
-    name: "Mistral",
+  // src/providers/qwen.js
+  var CHAT_PATH = /^\/c\/([0-9a-f-]{36})/i;
+  var qwenAdapter = {
+    name: "Qwen",
     currentConversationId() {
       return CHAT_PATH.exec(location.pathname)?.[1] ?? null;
     },
-    async loadConversation(id) {
-      const chat = await trpc("chat.byId", { json: { id } });
-      const messages = await trpc("message.all", { json: { chatId: id } });
-      return normalizeMistralConversation(
-        { id, title: chat.userTitle || chat.generatedTitle || chat.title, updatedAt: chat.updatedAt },
-        messages.items ?? []
-      );
+    async loadConversation(id, progress = () => {
+    }) {
+      progress("Loading conversation...");
+      const body = await getJson(`/api/v2/chats/${encodeURIComponent(id)}`);
+      return normalizeQwenConversation(body.data ?? body);
     },
     async listConversations() {
       const items = [];
-      let cursor = null;
-      do {
-        const input = { json: { limit: 50, ...cursor ? { cursor } : {} } };
-        if (cursor) input.meta = { values: { cursor: ["Date"] } };
-        const page = await trpc("chat.last", input);
-        for (const c of page.items ?? []) {
-          items.push({ id: c.id, title: c.userTitle || c.generatedTitle || c.title || "" });
+      const seen = /* @__PURE__ */ new Set();
+      for (let page = 1; page <= 500; page++) {
+        const body = await getJson(`/api/v2/chats/?page=${page}&exclude_project=true`);
+        const batch = body.data ?? [];
+        const fresh = batch.filter((c) => !seen.has(c.id));
+        if (fresh.length === 0) break;
+        for (const c of fresh) {
+          seen.add(c.id);
+          items.push({ id: c.id, title: c.title });
         }
-        cursor = page.nextCursor || null;
-      } while (cursor);
+      }
       return items;
     }
   };
-  async function trpc(procedure, input) {
-    const response = await fetch(`/api/trpc/${procedure}?input=${encodeURIComponent(JSON.stringify(input))}`, {
-      credentials: "include",
-      headers: { Accept: "application/json" }
-    });
-    if (response.status === 429) throw new Error("Mistral is rate limiting requests; try again later.");
-    if (!response.ok) throw new Error(`Mistral request failed: ${response.status} ${procedure}`);
-    const body = await response.json();
-    return body.result.data.json;
+  async function getJson(path) {
+    const response = await fetch(path, { credentials: "include", headers: { Accept: "application/json" } });
+    if (response.status === 429) throw new Error("Qwen is rate limiting requests; try again later.");
+    if (response.status === 401 || response.status === 403) throw new Error("Not signed in to Qwen.");
+    if (!response.ok) throw new Error(`Qwen request failed: ${response.status} ${path.split("?")[0]}`);
+    return response.json();
   }
 
-  // src/mistral-entry.js
-  mountWidget(mistralAdapter);
+  // src/qwen-entry.js
+  mountWidget(qwenAdapter);
 })();

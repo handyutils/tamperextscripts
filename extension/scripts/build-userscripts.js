@@ -10,7 +10,7 @@ import { parseMetadata } from "../src/userscript/metadata.js";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const registry = join(root, "..", "community-scripts-registry");
 
-const VERSION = "0.1.6";
+const VERSION = "0.1.8";
 
 const targets = [
   {
@@ -61,6 +61,36 @@ const targets = [
       name: "ChatGPT Chat Exporter (tamperextscripts)",
       match: ["https://chatgpt.com/*", "https://chat.openai.com/*"],
       description: "Export ChatGPT conversations to Markdown, JSON, HTML, or plain text.",
+    },
+  },
+  {
+    entry: "src/gemini-entry.js",
+    folder: "geminichatsexporter",
+    file: `Gemini Exporter-${VERSION}.user.js`,
+    header: {
+      name: "Gemini Chat Exporter",
+      match: "https://gemini.google.com/*",
+      description: "Export Gemini conversations to Markdown, JSON, HTML, or plain text.",
+    },
+  },
+  {
+    entry: "src/qwen-entry.js",
+    folder: "qwenchatsexporter",
+    file: `Qwen Exporter-${VERSION}.user.js`,
+    header: {
+      name: "Qwen Chat Exporter",
+      match: "https://chat.qwen.ai/*",
+      description: "Export Qwen conversations to Markdown, JSON, HTML, or plain text.",
+    },
+  },
+  {
+    entry: "src/zai-entry.js",
+    folder: "zaichatsexporter",
+    file: `Z.ai Exporter-${VERSION}.user.js`,
+    header: {
+      name: "Z.ai Chat Exporter",
+      match: "https://chat.z.ai/*",
+      description: "Export Z.ai conversations to Markdown, JSON, HTML, or plain text.",
     },
   },
 ];
