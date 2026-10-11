@@ -26,7 +26,7 @@ exporter's behavior.
 | Site | Folder | Status | Known endpoints | Blocker |
 | --- | --- | --- | --- | --- |
 | ChatGPT | `gptchatsexporter/` | Working (userscript 2.32.1); extension adapter verified on a stubbed page | `/backend-api/conversation/{id}`, `/backend-api/conversations`, `/api/auth/session` | Not verified with a logged-in account |
-| Claude | `claudechatsexporter/` | In progress | `/api/organizations/{org}/chat_conversations/{id}?tree=true&rendering_mode=messages&render_all_tools=true` (org from `lastActiveOrg` cookie) | Needs logged-in check |
+| Claude | `claudechatsexporter/` | Built (0.1.4); regular chats and Cowork sessions | `/api/organizations/{org}/chat_conversations/{id}?tree=true&rendering_mode=messages&render_all_tools=true` (org from `lastActiveOrg` cookie) | Needs logged-in check |
 | Grok | `grokchatsexporter/` | Built (0.1.1); endpoints read from a logged-in page; not yet run end-to-end | `/rest/app-chat/conversations_v2/{id}`, `/rest/app-chat/conversations/{id}/response-node`, POST `/rest/app-chat/conversations/{id}/load-responses`, `/rest/app-chat/conversations` (pageToken) | Needs logged-in export test |
 | Mistral (Le Chat) | `mistralchatsexporter/` | Built (0.1.1); endpoints read from a logged-in page; not yet run end-to-end | tRPC GET `chat.byId` (`{json:{id}}`), `message.all` (`{json:{chatId}}`), `chat.last` (paging via date cursor with superjson `meta`) | Needs logged-in export test |
 | DeepSeek | `deepseekchatsexporter/` | Built (0.1.1); auth via page's `localStorage.userToken.value`, same origin only | `/api/v0/chat/history_messages?chat_session_id=`, `/api/v0/chat_session/fetch_page` (first page only; errors if `has_more`) | Needs logged-in export test; list paging unverified past 54 chats |
@@ -79,3 +79,16 @@ from real traffic.
    conversations. Copy the URL (remove query values that identify you) and
    the response JSON's top-level keys, not the content.
 4. Send those to the assistant to finish that site's adapter.
+
+## Claude Cowork sessions
+
+Some chats in the claude.ai sidebar are Cowork sessions, not regular chats. They
+do not appear in `/api/organizations/{org}/chat_conversations`; the page loads
+them from `/v1/code/sessions/{cse_id}` and `/v1/code/sessions/{cse_id}/events`
+(paged with `?cursor=`, newest first, ordered by `sequence_num`). Both calls
+require the header `anthropic-version: 2023-06-01`. The visible conversation is
+the `user` events with string content and the `assistant` events' `text` blocks.
+
+Limits: the session id is taken from the URL on `/cowork/` pages, or from the page's
+newest `/v1/code/sessions/` request. Export all covers regular chats only; the
+Cowork session list endpoint is not mapped.
