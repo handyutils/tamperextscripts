@@ -93,3 +93,31 @@ h1, h2, h3 { line-height: 1.2; }
 .chip.active { background: var(--teal); border-color: var(--teal); color: #fff; }
 .chip:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Layout with collapsible sidebar */
+.layout { display: flex; min-height: 100vh; }
+.layout-main { flex: 1 1 auto; min-width: 0; }
+.sidebar {
+  position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto;
+  width: 230px; flex: 0 0 230px; padding: 56px 14px 16px; border-right: 1px solid var(--line);
+  background: var(--paper); transition: width .2s ease, flex-basis .2s ease;
+}
+.sidebar.collapsed { width: 48px; flex-basis: 48px; padding: 56px 6px 16px; overflow: hidden; }
+.sidebar-toggle {
+  position: absolute; top: 12px; left: 12px; width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font-size: 16px;
+}
+.sidebar.collapsed .sidebar-toggle { left: 10px; }
+.sidebar nav { display: flex; flex-direction: column; gap: 4px; }
+.sidebar nav a { color: var(--ink); text-decoration: none; padding: 6px 8px; border-radius: 6px; font-size: 14px; }
+.sidebar nav a:hover { background: rgba(245, 158, 11, .15); color: var(--teal); }
+.sidebar nav a:focus-visible, .sidebar-toggle:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.side-home { font-weight: 700; }
+.side-label { margin: 14px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.sidebar { position: sticky; }
+.topbar { position: sticky; top: 0; }
+@media (max-width: 760px) {
+  .sidebar { position: fixed; z-index: 20; height: 100vh; box-shadow: 4px 0 16px rgba(0,0,0,.15); }
+  .sidebar:not(.collapsed) { width: 230px; }
+  .layout-main { padding-left: 44px; }
+}

@@ -1,7 +1,7 @@
 // Builds the extension and packages dist/ into website/public/downloads/ as a
 // zip, so the site can offer a direct download. Runs before `vite build`.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -24,3 +24,21 @@ execFileSync("zip", ["-qr", join(outDir, zipName), "."], {
   stdio: "inherit",
 });
 console.log(`Packaged public/downloads/${zipName}`);
+
+// Copy every community userscript into public/scripts/<folder>/, so the site serves
+// them from its own origin and the download attribute works. Raw GitHub links open
+// as text in the browser instead of downloading.
+const communityRoot = join(websiteRoot, "..", "community-scripts-registry");
+const scriptsOut = join(websiteRoot, "public", "scripts");
+rmSync(scriptsOut, { recursive: true, force: true });
+let copied = 0;
+for (const folder of readdirSync(communityRoot)) {
+  const dir = join(communityRoot, folder);
+  if (!statSync(dir).isDirectory()) continue;
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".user.js"))) {
+    mkdirSync(join(scriptsOut, folder), { recursive: true });
+    copyFileSync(join(dir, file), join(scriptsOut, folder, file));
+    copied++;
+  }
+}
+console.log(`Copied ${copied} userscripts to public/scripts/`);

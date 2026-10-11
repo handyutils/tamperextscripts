@@ -3,6 +3,61 @@ import { sections, siteGuides, REGISTRY_INDEX, REPO } from "./content.js";
 
 const BASE = import.meta.env.BASE_URL;
 
+// Same-origin download path for a registry script: public/scripts/<folder>/<file>.
+function localScriptUrl(script) {
+  const match = /community-scripts-registry\/([^/]+)\/(.+)$/.exec(decodeURI(script.url));
+  return match ? `${BASE}scripts/${match[1]}/${encodeURI(match[2])}` : script.url;
+}
+
+// Collapsible sidebar with links to every section. Collapsed state is remembered.
+function Sidebar({ collapsed, onToggle }) {
+  const links = [
+    ...sections.map((x) => ({ href: `#${x.id}`, label: x.title })),
+    { href: "#registry", label: "Community scripts" },
+  ];
+  return (
+    <aside className={`sidebar${collapsed ? " collapsed" : ""}`} aria-label="Site navigation">
+      <button
+        type="button"
+        className="sidebar-toggle"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed ? "»" : "«"}
+      </button>
+      {!collapsed && (
+        <nav>
+          <a className="side-home" href={BASE}>Home</a>
+          <p className="side-label">On this page</p>
+          {links.map((l) => (
+            <a key={l.href} href={l.href}>{l.label}</a>
+          ))}
+          <p className="side-label">Links</p>
+          <a href={REPO} target="_blank" rel="noreferrer">GitHub repository</a>
+        </nav>
+      )}
+    </aside>
+  );
+}
+
+function Shell({ children }) {
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem("sidebar") === "collapsed");
+  const toggle = () => {
+    setCollapsed((c) => {
+      localStorage.setItem("sidebar", c ? "open" : "collapsed");
+      return !c;
+    });
+  };
+  return (
+    <div className={`layout${collapsed ? " is-collapsed" : ""}`}>
+      <Sidebar collapsed={collapsed} onToggle={toggle} />
+      <div className="layout-main">{children}</div>
+    </div>
+  );
+}
+
 export default function App() {
   const [query, setQuery] = useState("");
   const results = useMemo(() => search(query), [query]);
@@ -10,11 +65,15 @@ export default function App() {
   const scriptId = /^#script\/(.+)$/.exec(hash)?.[1];
 
   if (scriptId) {
-    return <ScriptPage id={decodeURIComponent(scriptId)} />;
+    return (
+      <Shell>
+        <ScriptPage id={decodeURIComponent(scriptId)} />
+      </Shell>
+    );
   }
 
   return (
-    <>
+    <Shell>
       <header className="topbar">
         <a className="brand" href={BASE}>
           <img src={`${BASE}logo.svg`} alt="" width="32" height="32" />
@@ -53,7 +112,7 @@ export default function App() {
         <span>tamperextscripts is open source under GPL-3.0.</span>
         <a href={REPO} target="_blank" rel="noreferrer">Source on GitHub</a>
       </footer>
-    </>
+    </Shell>
   );
 }
 
@@ -204,7 +263,7 @@ function Registry() {
               <p>{s.description}</p>
               <p className="muted">{s.category ?? "Other"} · License: {s.license}</p>
               <div className="card-actions">
-                <a className="button primary" href={s.url} target="_blank" rel="noreferrer">Install</a>
+                <a className="button primary" href={localScriptUrl(s)} download>Download</a>
                 <a className="button" href={s.url.replace("raw.githubusercontent.com", "github.com").replace("/master/", "/blob/master/")} target="_blank" rel="noreferrer">View source</a>
               </div>
             </article>
@@ -301,7 +360,7 @@ function ScriptPage({ id }) {
       <p className="lede">{s.description}</p>
 
       <div className="card-actions">
-        <a className="button primary" href={s.url} target="_blank" rel="noreferrer">Download .user.js</a>
+        <a className="button primary" href={localScriptUrl(s)} download>Download .user.js</a>
         <a className="button" href={sourceUrl} target="_blank" rel="noreferrer">View source</a>
       </div>
       <p className="note">
