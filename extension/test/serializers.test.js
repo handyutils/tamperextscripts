@@ -58,3 +58,8 @@ test("filenames fall back to a default title", () => {
     "Untitled conversation - x1.json",
   );
 });
+
+test("filenames omit the separator when there is no conversation id", () => {
+  assert.equal(toFilename({ id: "", title: "My chat", messages: [] }, "md"), "My chat.md");
+  assert.equal(toFilename({ title: "My chat", messages: [] }, "md"), "My chat.md");
+});

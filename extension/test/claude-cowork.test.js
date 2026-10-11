@@ -51,3 +51,15 @@ test("joins several assistant text blocks and sorts numeric sequence numbers num
 test("defaults the title", () => {
   assert.equal(normalizeCoworkSession({ id: "cse_1" }, []).title, "Untitled conversation");
 });
+
+test("reads title and id when the session is wrapped in response_shape", () => {
+  const wrapped = { response_shape: { id: "cse_9", title: "Wrapped title", created_at: "2026-09-30T10:00:00Z" } };
+  const conv = normalizeCoworkSession(wrapped, []);
+  assert.equal(conv.id, "cse_9");
+  assert.equal(conv.title, "Wrapped title");
+});
+
+test("falls back to the post-turn summary title", () => {
+  const conv = normalizeCoworkSession({ id: "cse_9", post_turn_summary: { title: "Summary title" } }, []);
+  assert.equal(conv.title, "Summary title");
+});

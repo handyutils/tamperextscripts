@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Grok Chat Exporter
+// @name         Mistral Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.5
-// @description  Export grok.com conversations to Markdown, JSON, HTML, or plain text.
+// @version      0.1.6
+// @description  Export Mistral Le Chat conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
-// @match        https://grok.com/*
+// @match        https://chat.mistral.ai/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -52,7 +52,7 @@ ${m.text}`
   }
   function toFilename(conversation, extension) {
     const title = sanitize(conversation.title) || "Untitled conversation";
-    const base = `${title} - ${conversation.id}`.slice(0, MAX_FILENAME_LENGTH);
+    const base = (conversation.id ? `${title} - ${conversation.id}` : title).slice(0, MAX_FILENAME_LENGTH);
     return `${base}.${extension}`;
   }
   function roleLabel(role) {
@@ -122,14 +122,20 @@ ${m.text}`
     const id = adapter.currentConversationId();
     if (!id) throw new Error("Open a conversation first.");
     const format = FORMATS.find((f) => f.key === key);
-    const conversation = await adapter.loadConversation(id);
+    status.textContent = "Loading conversation...";
+    const conversation = await adapter.loadConversation(id, (message) => {
+      status.textContent = message;
+    });
     download(format.build(conversation), toFilename(conversation, format.ext), format.mime);
     status.textContent = `Exported ${format.label}.`;
   }
   async function copyCurrent(status, adapter) {
     const id = adapter.currentConversationId();
     if (!id) throw new Error("Open a conversation first.");
-    const conversation = await adapter.loadConversation(id);
+    status.textContent = "Loading conversation...";
+    const conversation = await adapter.loadConversation(id, (message) => {
+      status.textContent = message;
+    });
     await navigator.clipboard.writeText(toText(conversation));
     status.textContent = "Copied conversation text.";
   }
@@ -190,84 +196,63 @@ ${m.text}`
     return style;
   }
 
-  // src/providers/grok-normalize.js
-  var ROLE_BY_SENDER = { human: "user", assistant: "assistant" };
-  function normalizeGrokConversation(meta, tree, loaded) {
-    const byId = new Map(loaded.responses.map((r) => [r.responseId, r]));
-    const nodes = new Map(tree.responseNodes.map((n) => [n.responseId, n]));
-    const parents = new Set(tree.responseNodes.map((n) => n.parentResponseId).filter(Boolean));
-    const leaves = tree.responseNodes.filter((n) => !parents.has(n.responseId));
-    const newest = (ids) => ids.reduce((best, id) => timeOf(byId.get(id)) > timeOf(byId.get(best)) ? id : best);
-    let cur = leaves.length ? newest(leaves.map((n) => n.responseId)) : null;
-    const branch = [];
-    const seen = /* @__PURE__ */ new Set();
-    while (cur && nodes.has(cur) && !seen.has(cur)) {
-      seen.add(cur);
-      branch.push(byId.get(cur));
-      cur = nodes.get(cur).parentResponseId || null;
-    }
-    branch.reverse();
-    const messages = branch.filter(Boolean).map((r) => ({
-      role: ROLE_BY_SENDER[r.sender],
-      text: typeof r.message === "string" ? r.message.trim() : "",
-      createTime: r.createTime ? Math.floor(Date.parse(r.createTime) / 1e3) : null
+  // src/providers/mistral-normalize.js
+  var ROLE = { user: "user", assistant: "assistant" };
+  function normalizeMistralConversation(chat, items) {
+    const messages = [...items].sort((a, b) => (a.turn ?? 0) - (b.turn ?? 0) || Date.parse(a.createdAt) - Date.parse(b.createdAt)).map((m) => ({
+      role: ROLE[m.role],
+      text: typeof m.content === "string" ? m.content.trim() : "",
+      createTime: m.createdAt ? Math.floor(Date.parse(m.createdAt) / 1e3) : null
     })).filter((m) => m.role && m.text);
     return {
-      id: meta.conversation?.conversationId ?? "",
-      title: meta.conversation?.title || "Untitled conversation",
-      createTime: meta.conversation?.createTime ? Math.floor(Date.parse(meta.conversation.createTime) / 1e3) : null,
+      id: chat.id ?? "",
+      title: chat.title || "Untitled conversation",
+      createTime: chat.updatedAt ? Math.floor(Date.parse(chat.updatedAt) / 1e3) : null,
       messages
     };
   }
-  function timeOf(response) {
-    return response?.createTime ? Date.parse(response.createTime) : 0;
-  }
 
-  // src/providers/grok.js
-  var CONVERSATION_PATH = /^\/c\/([0-9a-f-]+)/i;
-  var grokAdapter = {
-    name: "Grok",
+  // src/providers/mistral.js
+  var CHAT_PATH = /^\/work\/([0-9a-f-]+)/i;
+  var mistralAdapter = {
+    name: "Mistral",
     currentConversationId() {
-      return CONVERSATION_PATH.exec(location.pathname)?.[1] ?? null;
+      return CHAT_PATH.exec(location.pathname)?.[1] ?? null;
     },
     async loadConversation(id) {
-      const meta = await getJson(`/rest/app-chat/conversations_v2/${id}?includeWorkspaces=true&includeTaskResult=true`);
-      const tree = await getJson(`/rest/app-chat/conversations/${id}/response-node`);
-      const loaded = await postJson(`/rest/app-chat/conversations/${id}/load-responses`, {
-        responseIds: tree.responseNodes.map((n) => n.responseId)
-      });
-      return normalizeGrokConversation(meta, tree, loaded);
+      const chat = await trpc("chat.byId", { json: { id } });
+      const messages = await trpc("message.all", { json: { chatId: id } });
+      return normalizeMistralConversation(
+        { id, title: chat.userTitle || chat.generatedTitle || chat.title, updatedAt: chat.updatedAt },
+        messages.items ?? []
+      );
     },
     async listConversations() {
       const items = [];
-      let token = null;
+      let cursor = null;
       do {
-        const query = new URLSearchParams({ pageSize: "60" });
-        if (token) query.set("pageToken", token);
-        const page = await getJson(`/rest/app-chat/conversations?${query}`);
-        for (const c of page.conversations ?? []) items.push({ id: c.conversationId, title: c.title });
-        token = page.nextPageToken || null;
-      } while (token);
+        const input = { json: { limit: 50, ...cursor ? { cursor } : {} } };
+        if (cursor) input.meta = { values: { cursor: ["Date"] } };
+        const page = await trpc("chat.last", input);
+        for (const c of page.items ?? []) {
+          items.push({ id: c.id, title: c.userTitle || c.generatedTitle || c.title || "" });
+        }
+        cursor = page.nextCursor || null;
+      } while (cursor);
       return items;
     }
   };
-  async function getJson(path) {
-    return request(path, { headers: { Accept: "application/json" } });
-  }
-  async function postJson(path, body) {
-    return request(path, {
-      method: "POST",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+  async function trpc(procedure, input) {
+    const response = await fetch(`/api/trpc/${procedure}?input=${encodeURIComponent(JSON.stringify(input))}`, {
+      credentials: "include",
+      headers: { Accept: "application/json" }
     });
-  }
-  async function request(path, init) {
-    const response = await fetch(path, { credentials: "include", ...init });
-    if (response.status === 429) throw new Error("Grok is rate limiting requests; try again later.");
-    if (!response.ok) throw new Error(`Grok request failed: ${response.status} ${path}`);
-    return response.json();
+    if (response.status === 429) throw new Error("Mistral is rate limiting requests; try again later.");
+    if (!response.ok) throw new Error(`Mistral request failed: ${response.status} ${procedure}`);
+    const body = await response.json();
+    return body.result.data.json;
   }
 
-  // src/grok-entry.js
-  mountWidget(grokAdapter);
+  // src/mistral-entry.js
+  mountWidget(mistralAdapter);
 })();

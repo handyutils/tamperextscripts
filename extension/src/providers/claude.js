@@ -16,10 +16,11 @@ export const claudeAdapter = {
     return CONVERSATION_PATH.exec(location.pathname)?.[1] ?? null;
   },
 
-  async loadConversation(id) {
+  async loadConversation(id, progress = () => {}) {
     // Ask Claude which organizations the current account has, on every call, so a
     // switched account never reuses an old organization.
     let notFound = false;
+    progress("Checking your Claude account...");
     for (const org of await organizationIds()) {
       const url = `/api/organizations/${org}/chat_conversations/${id}?tree=true&rendering_mode=messages&render_all_tools=true`;
       const response = await fetch(url, { credentials: "include", headers: { Accept: "application/json" } });
@@ -31,8 +32,9 @@ export const claudeAdapter = {
     }
     // Cowork sessions are not in the regular chat API. The page loads them from
     // /v1/code/sessions/{id}, so fall back to that when the chat was not found.
+    if (notFound) progress("Looking for the Cowork session...");
     const coworkId = notFound ? await coworkSessionId() : null;
-    if (coworkId) return loadCoworkSession(coworkId);
+    if (coworkId) return loadCoworkSession(coworkId, progress);
     if (notFound) {
       throw new Error(`This conversation was not found in the signed-in Claude account (${await signedInEmail()}). Sign in to the account that owns it.`);
     }
@@ -74,16 +76,21 @@ async function coworkSessionId() {
 
 const COWORK_HEADERS = { Accept: "application/json", "anthropic-version": "2023-06-01" };
 
-async function loadCoworkSession(sessionId) {
+async function loadCoworkSession(sessionId, progress) {
   const session = await coworkJson(`/v1/code/sessions/${sessionId}`);
   const events = [];
   let cursor = null;
+  let total = null;
   do {
     const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
     const page = await coworkJson(`/v1/code/sessions/${sessionId}/events${query}`);
+    // Events arrive newest first, so the first sequence number is the total count.
+    if (total === null) total = Number(page.data?.[0]?.sequence_num) || null;
     events.push(...(page.data ?? []));
+    progress(total ? `Loading messages... ${Math.min(100, Math.round((events.length / total) * 100))}%` : `Loading messages... ${events.length} events`);
     cursor = page.next_cursor && page.next_cursor !== cursor ? page.next_cursor : null;
   } while (cursor);
+  progress("Building the file...");
   return normalizeCoworkSession(session, events);
 }
 

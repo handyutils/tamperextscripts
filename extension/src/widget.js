@@ -1,7 +1,7 @@
 // Export widget shared by every site. The site-specific part is an adapter:
 //   adapter.name                 display name
 //   adapter.currentConversationId()  id of the conversation on this page, or null
-//   adapter.loadConversation(id) -> normalized conversation
+//   adapter.loadConversation(id, onProgress?) -> normalized conversation; onProgress(text) reports status
 //   adapter.listConversations?() -> [{ id, title }] (enables "Export all")
 
 import { toMarkdown, toJson, toHtml, toText, toFilename } from "./serializers.js";
@@ -72,7 +72,10 @@ async function exportCurrent(key, status, adapter) {
   const id = adapter.currentConversationId();
   if (!id) throw new Error("Open a conversation first.");
   const format = FORMATS.find((f) => f.key === key);
-  const conversation = await adapter.loadConversation(id);
+  status.textContent = "Loading conversation...";
+  const conversation = await adapter.loadConversation(id, (message) => {
+    status.textContent = message;
+  });
   download(format.build(conversation), toFilename(conversation, format.ext), format.mime);
   status.textContent = `Exported ${format.label}.`;
 }
@@ -80,7 +83,10 @@ async function exportCurrent(key, status, adapter) {
 async function copyCurrent(status, adapter) {
   const id = adapter.currentConversationId();
   if (!id) throw new Error("Open a conversation first.");
-  const conversation = await adapter.loadConversation(id);
+  status.textContent = "Loading conversation...";
+  const conversation = await adapter.loadConversation(id, (message) => {
+    status.textContent = message;
+  });
   await navigator.clipboard.writeText(toText(conversation));
   status.textContent = "Copied conversation text.";
 }

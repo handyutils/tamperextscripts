@@ -53,7 +53,7 @@ export function toHtml(conversation) {
 // Stable, filesystem-safe name: "<title> - <id>.<ext>".
 export function toFilename(conversation, extension) {
   const title = sanitize(conversation.title) || "Untitled conversation";
-  const base = `${title} - ${conversation.id}`.slice(0, MAX_FILENAME_LENGTH);
+  const base = (conversation.id ? `${title} - ${conversation.id}` : title).slice(0, MAX_FILENAME_LENGTH);
   return `${base}.${extension}`;
 }
 

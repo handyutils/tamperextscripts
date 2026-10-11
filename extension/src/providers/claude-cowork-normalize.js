@@ -3,7 +3,9 @@
 // Only visible text is kept: user prompts and assistant text blocks. Tool calls,
 // tool results, thinking, and system or control events are skipped.
 
-export function normalizeCoworkSession(session, events) {
+export function normalizeCoworkSession(rawSession, events) {
+  // The session endpoint wraps the record in a response_shape object.
+  const session = rawSession.response_shape ?? rawSession;
   const messages = [...events]
     .sort((a, b) => Number(a.sequence_num) - Number(b.sequence_num))
     .map(toMessage)
@@ -11,7 +13,7 @@ export function normalizeCoworkSession(session, events) {
 
   return {
     id: session.id ?? "",
-    title: session.title || "Untitled conversation",
+    title: session.title || session.post_turn_summary?.title || "Untitled conversation",
     createTime: session.created_at ? Math.floor(Date.parse(session.created_at) / 1000) : null,
     messages,
   };
