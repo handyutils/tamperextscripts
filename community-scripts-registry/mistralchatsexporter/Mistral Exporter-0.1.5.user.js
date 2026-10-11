@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Mistral Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.4
+// @version      0.1.5
 // @description  Export Mistral Le Chat conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
 // @match        https://chat.mistral.ai/*

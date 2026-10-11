@@ -5,6 +5,7 @@
 import { normalizeClaudeConversation } from "./claude-normalize.js";
 import { orderOrganizations } from "./claude-orgs.js";
 import { normalizeCoworkSession } from "./claude-cowork-normalize.js";
+import { pickCoworkSession } from "./claude-cowork-pick.js";
 
 const CONVERSATION_PATH = /^\/chat\/([0-9a-f-]+)/i;
 
@@ -30,7 +31,7 @@ export const claudeAdapter = {
     }
     // Cowork sessions are not in the regular chat API. The page loads them from
     // /v1/code/sessions/{id}, so fall back to that when the chat was not found.
-    const coworkId = notFound ? coworkSessionId() : null;
+    const coworkId = notFound ? await coworkSessionId() : null;
     if (coworkId) return loadCoworkSession(coworkId);
     if (notFound) {
       throw new Error(`This conversation was not found in the signed-in Claude account (${await signedInEmail()}). Sign in to the account that owns it.`);
@@ -48,11 +49,22 @@ export const claudeAdapter = {
   },
 };
 
-// The session id comes from the page's own request for it (or the URL on /cowork/).
-// The newest matching request is used, because the page for the open chat loads it last.
-function coworkSessionId() {
+// Resolves the Cowork session behind this page: the /cowork/ URL if present, else the
+// session whose title matches the page title (the chat id is not stored on the
+// session), else the page's own newest session request.
+async function coworkSessionId() {
   const fromUrl = /\/cowork\/(cse_[A-Za-z0-9]+)/.exec(location.pathname)?.[1];
   if (fromUrl) return fromUrl;
+
+  const list = await coworkJson("/v1/code/sessions?limit=50").catch(() => null);
+  if (list) {
+    const pick = pickCoworkSession(list.data ?? [], document.title);
+    if (pick.id) return pick.id;
+    if (pick.error === "ambiguous") {
+      throw new Error(`${pick.count} Cowork sessions share this title, so the right one can't be chosen. Rename one of them and try again.`);
+    }
+  }
+
   const ids = performance
     .getEntriesByType("resource")
     .map((e) => /\/v1\/code\/sessions\/(cse_[A-Za-z0-9]+)/.exec(e.name)?.[1])

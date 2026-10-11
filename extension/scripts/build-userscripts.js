@@ -10,7 +10,7 @@ import { parseMetadata } from "../src/userscript/metadata.js";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const registry = join(root, "..", "community-scripts-registry");
 
-const VERSION = "0.1.4";
+const VERSION = "0.1.5";
 
 const targets = [
   {

@@ -89,6 +89,11 @@ them from `/v1/code/sessions/{cse_id}` and `/v1/code/sessions/{cse_id}/events`
 require the header `anthropic-version: 2023-06-01`. The visible conversation is
 the `user` events with string content and the `assistant` events' `text` blocks.
 
-Limits: the session id is taken from the URL on `/cowork/` pages, or from the page's
-newest `/v1/code/sessions/` request. Export all covers regular chats only; the
-Cowork session list endpoint is not mapped.
+Session lookup: a `/chat/{uuid}` page does not expose its `cse_` session id, and the
+session record does not store the chat uuid. The exporter uses the `/cowork/cse_...`
+URL if present, otherwise matches the page title against `GET /v1/code/sessions`
+(`data[].title`), and reports an ambiguous title instead of guessing; as a last
+resort it uses the page's newest `/v1/code/sessions/` request.
+
+Limits: Export all covers regular chats only; Cowork sessions are listed by
+`/v1/code/sessions` but not yet included in Export all.

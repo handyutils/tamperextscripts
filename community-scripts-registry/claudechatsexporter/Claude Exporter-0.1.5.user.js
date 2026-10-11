@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Claude Chat Exporter
 // @namespace    https://github.com/handyutils/tamperextscripts
-// @version      0.1.4
+// @version      0.1.5
 // @description  Export claude.ai conversations to Markdown, JSON, HTML, or plain text.
 // @license      GPL-3.0-only
 // @match        https://claude.ai/*
@@ -247,6 +247,17 @@ ${m.text}`
     };
   }
 
+  // src/providers/claude-cowork-pick.js
+  var normalize = (value) => String(value ?? "").replace(/\s*-\s*Claude\s*$/i, "").trim().toLowerCase();
+  function pickCoworkSession(sessions, pageTitle) {
+    const wanted = normalize(pageTitle);
+    if (!wanted) return { error: "none" };
+    const matches = sessions.filter((s) => normalize(s.title) === wanted);
+    if (matches.length === 1) return { id: matches[0].id };
+    if (matches.length === 0) return { error: "none" };
+    return { error: "ambiguous", count: matches.length };
+  }
+
   // src/providers/claude.js
   var CONVERSATION_PATH = /^\/chat\/([0-9a-f-]+)/i;
   var claudeAdapter = {
@@ -265,7 +276,7 @@ ${m.text}`
         }
         return normalizeClaudeConversation(await parse(response, url));
       }
-      const coworkId = notFound ? coworkSessionId() : null;
+      const coworkId = notFound ? await coworkSessionId() : null;
       if (coworkId) return loadCoworkSession(coworkId);
       if (notFound) {
         throw new Error(`This conversation was not found in the signed-in Claude account (${await signedInEmail()}). Sign in to the account that owns it.`);
@@ -281,9 +292,17 @@ ${m.text}`
       return items;
     }
   };
-  function coworkSessionId() {
+  async function coworkSessionId() {
     const fromUrl = /\/cowork\/(cse_[A-Za-z0-9]+)/.exec(location.pathname)?.[1];
     if (fromUrl) return fromUrl;
+    const list = await coworkJson("/v1/code/sessions?limit=50").catch(() => null);
+    if (list) {
+      const pick = pickCoworkSession(list.data ?? [], document.title);
+      if (pick.id) return pick.id;
+      if (pick.error === "ambiguous") {
+        throw new Error(`${pick.count} Cowork sessions share this title, so the right one can't be chosen. Rename one of them and try again.`);
+      }
+    }
     const ids = performance.getEntriesByType("resource").map((e) => /\/v1\/code\/sessions\/(cse_[A-Za-z0-9]+)/.exec(e.name)?.[1]).filter(Boolean);
     return ids.at(-1) ?? null;
   }
