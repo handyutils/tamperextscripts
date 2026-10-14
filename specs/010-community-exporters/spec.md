@@ -99,3 +99,15 @@ resort it uses the page's newest `/v1/code/sessions/` request.
 
 Limits: Export all covers regular chats only; Cowork sessions are listed by
 `/v1/code/sessions` but not yet included in Export all.
+
+## linkedinactions (community script, not an exporter)
+
+`community-scripts-registry/linkedinactions/linkedinactions-0.1.0.user.js` adds a
+button on linkedin.com with quick actions. It copies the current profile URL, or
+copies the profile URLs of all open LinkedIn tabs (one per line, unique, canonical
+form `https://www.linkedin.com/in/<slug>/`).
+
+Tabs are found over a BroadcastChannel: a tab that runs the script answers a request
+with its current address. Only tabs that run the script and were loaded after it was
+installed can answer. No extra browser permission is used. Quick message templates
+are shown greyed out. Not yet tested on logged-in LinkedIn accounts.

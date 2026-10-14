@@ -93,6 +93,17 @@ const targets = [
       description: "Export Z.ai conversations to Markdown, JSON, HTML, or plain text.",
     },
   },
+  {
+    entry: "src/linkedin-entry.js",
+    folder: "linkedinactions",
+    file: "linkedinactions-0.1.0.user.js",
+    version: "0.1.0",
+    header: {
+      name: "linkedinactions",
+      match: "https://www.linkedin.com/*",
+      description: "Quick LinkedIn actions: copy this profile URL, or copy the profile URLs of all open LinkedIn tabs.",
+    },
+  },
 ];
 
 for (const target of targets) {
@@ -110,7 +121,7 @@ for (const target of targets) {
     "// ==UserScript==",
     `// @name         ${target.header.name}`,
     "// @namespace    https://github.com/handyutils/tamperextscripts",
-    `// @version      ${VERSION}`,
+    `// @version      ${target.version ?? VERSION}`,
     `// @description  ${target.header.description}`,
     "// @license      GPL-3.0-only",
     ...[target.header.match].flat().map((m) => `// @match        ${m}`),

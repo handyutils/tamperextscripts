@@ -66,6 +66,13 @@ export const siteGuides = [
     folder: "zaichatsexporter",
     file: "Z.ai Exporter-0.1.8.user.js",
   },
+  {
+    name: "linkedinactions",
+    where: "linkedin.com",
+    how: "Open the LinkedIn actions button in the bottom-right corner. Copy this profile URL, or choose Clipboard open tabs LinkedIn profiles to copy the profile URLs of all open LinkedIn tabs, one per line. Those tabs must run this script and must be reloaded after it was installed. Quick message templates are coming later.",
+    folder: "linkedinactions",
+    file: "linkedinactions-0.1.0.user.js",
+  },
 ];
 
 export const sections = [

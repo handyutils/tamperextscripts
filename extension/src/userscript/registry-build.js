@@ -21,6 +21,7 @@ const CATEGORY_BY_FOLDER = {
   deepseekchatsexporter: "Chat export",
   qwenchatsexporter: "Chat export",
   zaichatsexporter: "Chat export",
+  linkedinactions: "Productivity",
 };
 
 export function categoryFor(folder) {

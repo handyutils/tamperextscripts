@@ -52,6 +52,16 @@
       "category": "Chat export"
     },
     {
+      "id": "linkedinactions",
+      "name": "linkedinactions",
+      "version": "0.1.0",
+      "description": "Quick LinkedIn actions: copy this profile URL, or copy the profile URLs of all open LinkedIn tabs.",
+      "url": "https://raw.githubusercontent.com/handyutils/tamperextscripts/master/community-scripts-registry/linkedinactions/linkedinactions-0.1.0.user.js",
+      "sha256": "f8597a7c3aa434b2a2ca3794486c1fc5fa64caeb71d5a276b288043ac3280dc4",
+      "license": "GPL-3.0-only",
+      "category": "Productivity"
+    },
+    {
       "id": "mistral-chat-exporter",
       "name": "Mistral Chat Exporter",
       "version": "0.1.8",
