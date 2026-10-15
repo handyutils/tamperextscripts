@@ -172,7 +172,7 @@ function Section({ section }) {
 function SiteGuides() {
   return (
     <div className="cards">
-      {siteGuides.map((site) => (
+      {siteGuides.filter((site) => !site.utility).map((site) => (
         <article key={site.name} className="card">
           <h3>{site.name}</h3>
           <p className="muted">{site.where}</p>

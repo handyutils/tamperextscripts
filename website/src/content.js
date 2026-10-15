@@ -69,7 +69,8 @@ export const siteGuides = [
   {
     name: "linkedinactions",
     where: "linkedin.com",
-    how: "Open the LinkedIn actions button in the bottom-right corner. Copy this profile URL, or choose Clipboard open tabs LinkedIn profiles to copy the profile URLs of all open LinkedIn tabs, one per line. Those tabs must run this script and must be reloaded after it was installed. Quick message templates are coming later.",
+    how: "Copies LinkedIn profile URLs to the clipboard. See the LinkedIn actions section for details.",
+    utility: true,
     folder: "linkedinactions",
     file: "linkedinactions-0.1.0.user.js",
   },
@@ -153,6 +154,29 @@ export const sections = [
       "Each supported site has its own exporter. Open a chat on that site, click Export, then pick a format. Every exporter offers Markdown, JSON, HTML, plain text, copy, and export all.",
     ],
     siteGuides: true,
+  },
+  {
+    id: "linkedinactions",
+    title: "LinkedIn actions",
+    body: [
+      "linkedinactions adds a LinkedIn actions button to linkedin.com. It copies LinkedIn profile URLs to your clipboard, so you can paste them into a list, a CRM, or a notes file.",
+      "It reads the address of each LinkedIn tab in this browser and the profile you are viewing. It does not read message contents or send anything to a server.",
+    ],
+    steps: [
+      "Install the script. Open the community registry, choose linkedinactions, and click Download .user.js. Then install it with Tampermonkey (open the file in Chrome) or paste it into the extension's options page.",
+      "Reload every LinkedIn tab that was open before you installed the script. A tab only answers when it loaded the script, so each tab needs one reload after installation and after every update.",
+      "Click LinkedIn actions in the bottom-right corner to open the menu.",
+      "Choose Clipboard open tabs LinkedIn profiles to copy the profile URL of every open LinkedIn tab that runs the script. The list has one URL per line, with duplicates removed.",
+      "Choose Copy this profile URL to copy the profile on the page you are viewing.",
+    ],
+    faq: [
+      ["Only one profile was copied.", "The other tabs do not run the script yet. Reload them, then choose the action again."],
+      ["No profile tabs found.", "No other LinkedIn tab answered. Reload your LinkedIn tabs so they run the script."],
+      ["This page is not a LinkedIn profile.", "Copy this profile URL only works on a profile page, such as linkedin.com/in/name. Open a profile first."],
+      ["Which links are copied?", "Only profile pages (/in/...). Sub-pages such as /details/experience/ are shortened to the profile address, for example https://www.linkedin.com/in/name/."],
+      ["Quick message templates?", "Greyed out for now. Templates are planned for a later release."],
+    ],
+    note: "Tabs that LinkedIn has logged out or closed do not answer, so they are not copied. LinkedIn can show a security check; complete it yourself in the browser.",
   },
   {
     id: "faq",

@@ -9,6 +9,7 @@ Export your AI chats and run your own userscripts, in modern Chrome, without sen
 
 1. **Chat exporters.** Save a conversation as Markdown, JSON, HTML, or plain text, copy it, or export all of your chats. Supported sites: ChatGPT, Claude (including Cowork sessions), Gemini, Grok, Mistral Le Chat, DeepSeek, Qwen, and Z.ai.
 2. **Userscript manager.** Install your own `.user.js` scripts or community scripts from a registry. Each registry entry is pinned by SHA-256, so a changed file is refused.
+3. **LinkedIn actions** (`linkedinactions`). A button on linkedin.com that copies the profile URL of the current page, or the profile URLs of all open LinkedIn tabs, to the clipboard. Tabs must be reloaded once after the script is installed. Details are on the website under LinkedIn actions.
 
 ## Install
 
